@@ -13,13 +13,12 @@ Companheiro do [Planilha Florestal App](https://github.com/higuchip/inventario_a
 
 🔗 **[Acesse a aplicação](https://higuchip.github.io/planilha-florestal-analytics/)**
 
-![Screenshot](https://via.placeholder.com/800x400/2E7D32/FFFFFF?text=Planilha+Florestal+Analytics)
 
 ## ✨ Funcionalidades
 
 ### 📈 Análises Disponíveis
 - **Parâmetros Fitossociológicos**: Densidade, Frequência, Dominância e IVI
-- **Índices de Diversidade**: Shannon-Weaver, Pielou, Simpson, Riqueza
+- **Índices de Diversidade**: Shannon, Pielou, Simpson, Riqueza
 - **Estrutura Florestal**: Histogramas de DAP e Altura com estatísticas
 - **Curva de Acumulação**: Com estimadores de riqueza (Chao, Jackknife, Bootstrap)
 - **Padrão Espacial**: Índice de Morisita para as principais espécies
@@ -112,11 +111,9 @@ Este projeto está em desenvolvimento ativo. Características importantes:
 
 ## 📋 Roadmap
 
-- [ ] Implementar mais estimadores de riqueza
-- [ ] Adicionar análise de similaridade entre parcelas
-- [ ] Incluir gráficos de rank-abundância
-- [ ] Melhorar visualização de mapas com coordenadas
-- [ ] Adicionar testes automatizados
+- [ ] Explorar novas análises e visualizações
+- [ ] Criar visualização de mapas com coordenadas
+- [ ] Veriricar erros e bugs
 - [ ] Criar documentação técnica detalhada
 
 ## 🤝 Contribuições
@@ -143,7 +140,7 @@ Contribuições são bem-vindas! Como o projeto está em fase de testes:
 - 💼 GitHub: [@higuchip](https://github.com/higuchip)
 
 ## 📄 Licença
-
+- A definir
 ---
 
 <div align="center">
@@ -151,6 +148,7 @@ Contribuições são bem-vindas! Como o projeto está em fase de testes:
 **🌲 Planilha Florestal Analytics**
 
 *Desenvolvido para a comunidade florestal brasileira*
+
 
 [🚀 Experimente Agora](https://higuchip.github.io/planilha-florestal-analytics/) | [🐛 Reporte Bugs](https://github.com/higuchip/planilha-florestal-analytics/issues) | [📖 Documentação](https://github.com/higuchip/planilha-florestal-analytics/wiki)
 
