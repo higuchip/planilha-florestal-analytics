@@ -409,6 +409,44 @@
                 gap: 8px !important;
             }
 
+            /* Responsivo para gráficos de estrutura */
+            .structure-grid {
+                grid-template-columns: 1fr !important;
+                gap: 20px !important;
+            }
+
+            .structure-chart-container .chart-content {
+                height: 300px !important;
+                padding: 15px !important;
+            }
+
+            .structure-chart-container .chart-title {
+                font-size: 16px !important;
+            }
+
+            .structure-chart-container .info-box {
+                font-size: 12px !important;
+                padding: 10px 15px !important;
+            }
+
+            /* Ajustar texto das estatísticas para mobile */
+            .structure-chart-container .info-box p {
+                line-height: 1.4 !important;
+                word-break: break-word !important;
+            }
+
+            /* Melhorar botões de exportação em mobile */
+            .export-buttons {
+                display: grid !important;
+                grid-template-columns: 1fr !important;
+                gap: 10px !important;
+            }
+
+            .export-buttons .btn {
+                width: 100% !important;
+                justify-self: stretch !important;
+            }
+
             /* Responsivo para rodapé */
             footer > div > div:first-child {
                 flex-direction: column !important;
@@ -560,23 +598,23 @@
 
             <div id="structure" class="tab-content">
                 <h2 class="section-title">Estrutura da Floresta</h2>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 30px;">
-                    <div>
+                <div class="structure-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 30px;">
+                    <div class="structure-chart-container">
                         <div class="chart-header">
                             <div class="chart-title">Distribuição Diamétrica (DAP)</div>
                         </div>
-                        <div style="position: relative; height: 400px; background: white; border-radius: var(--border-radius); box-shadow: var(--shadow); padding: 20px;">
+                        <div class="chart-content" style="position: relative; height: 400px; background: white; border-radius: var(--border-radius); box-shadow: var(--shadow); padding: 20px;">
                             <canvas id="dapHistogram"></canvas>
                         </div>
                         <div class="info-box" style="margin-top: 15px;">
                             <p id="dapHistogramInfo"></p>
                         </div>
                     </div>
-                    <div>
+                    <div class="structure-chart-container">
                         <div class="chart-header">
                             <div class="chart-title">Distribuição de Altura</div>
                         </div>
-                        <div style="position: relative; height: 400px; background: white; border-radius: var(--border-radius); box-shadow: var(--shadow); padding: 20px;">
+                        <div class="chart-content" style="position: relative; height: 400px; background: white; border-radius: var(--border-radius); box-shadow: var(--shadow); padding: 20px;">
                             <canvas id="heightHistogram"></canvas>
                         </div>
                         <div class="info-box" style="margin-top: 15px;">
@@ -1313,6 +1351,18 @@
             updateDiversityIndices();
         }
         
+        // Função para obter configurações responsivas dos gráficos
+        function getResponsiveChartOptions() {
+            const isMobile = window.innerWidth < 768;
+            return {
+                fontSize: isMobile ? 10 : 12,
+                titleFontSize: isMobile ? 11 : 14,
+                legendFontSize: isMobile ? 10 : 12,
+                maxRotation: isMobile ? 45 : 0,
+                padding: isMobile ? 10 : 15
+            };
+        }
+
         // Criar histogramas de estrutura (DAP e Altura)
         function createStructureHistograms() {
             // Dados de DAP
@@ -1349,6 +1399,8 @@
             
             // Criar histograma de DAP
             const ctxDAP = document.getElementById('dapHistogram').getContext('2d');
+            const responsiveOptions = getResponsiveChartOptions();
+
             new Chart(ctxDAP, {
                 type: 'bar',
                 data: {
@@ -1391,7 +1443,17 @@
                         x: {
                             title: {
                                 display: true,
-                                text: 'Classes de DAP (cm)'
+                                text: 'Classes de DAP (cm)',
+                                font: {
+                                    size: responsiveOptions.titleFontSize
+                                }
+                            },
+                            ticks: {
+                                font: {
+                                    size: responsiveOptions.fontSize
+                                },
+                                maxRotation: responsiveOptions.maxRotation,
+                                minRotation: responsiveOptions.maxRotation
                             }
                         },
                         y: {
@@ -1400,7 +1462,15 @@
                             position: 'left',
                             title: {
                                 display: true,
-                                text: 'Frequência'
+                                text: 'Frequência',
+                                font: {
+                                    size: responsiveOptions.titleFontSize
+                                }
+                            },
+                            ticks: {
+                                font: {
+                                    size: responsiveOptions.fontSize
+                                }
                             },
                             beginAtZero: true
                         }
@@ -1491,7 +1561,17 @@
                             x: {
                                 title: {
                                     display: true,
-                                    text: 'Classes de Altura (m)'
+                                    text: 'Classes de Altura (m)',
+                                    font: {
+                                        size: responsiveOptions.titleFontSize
+                                    }
+                                },
+                                ticks: {
+                                    font: {
+                                        size: responsiveOptions.fontSize
+                                    },
+                                    maxRotation: responsiveOptions.maxRotation,
+                                    minRotation: responsiveOptions.maxRotation
                                 }
                             },
                             y: {
@@ -1500,7 +1580,15 @@
                                 position: 'left',
                                 title: {
                                     display: true,
-                                    text: 'Frequência'
+                                    text: 'Frequência',
+                                    font: {
+                                        size: responsiveOptions.titleFontSize
+                                    }
+                                },
+                                ticks: {
+                                    font: {
+                                        size: responsiveOptions.fontSize
+                                    }
                                 },
                                 beginAtZero: true
                             }
