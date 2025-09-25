@@ -1,0 +1,2030 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planilha Florestal Analytics | Em Testes</title>
+    
+    <!-- Chart.js para gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Papa Parse para leitura de CSV -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <!-- html2canvas para exportar gráficos -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <style>
+        :root {
+            --primary-color: #2E7D32;
+            --primary-light: #4CAF50;
+            --primary-dark: #1B5E20;
+            --accent-color: #1976D2;
+            --secondary-accent: #0D47A1;
+            --error-color: #D32F2F;
+            --warning-color: #FFA000;
+            --text-color: #333333;
+            --text-light: #757575;
+            --background-color: #F5F8F5;
+            --card-color: #FFFFFF;
+            --border-color: #E0E0E0;
+            --shadow: 0 2px 4px rgba(0,0,0,0.1);
+            --shadow-hover: 0 4px 8px rgba(0,0,0,0.15);
+            --border-radius: 8px;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+        
+        .app-header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 20px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .app-title {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .app-title h1 {
+            font-size: 28px;
+            font-weight: 500;
+        }
+        
+        .app-title .icon {
+            font-size: 32px;
+        }
+        
+        .subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+        
+        .upload-section {
+            background: var(--card-color);
+            padding: 30px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .upload-area {
+            border: 2px dashed var(--primary-light);
+            border-radius: var(--border-radius);
+            padding: 40px;
+            background: rgba(76, 175, 80, 0.05);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-area:hover {
+            background: rgba(76, 175, 80, 0.1);
+            border-color: var(--primary-color);
+        }
+        
+        .upload-area.dragover {
+            background: rgba(76, 175, 80, 0.15);
+            border-color: var(--primary-dark);
+        }
+        
+        .upload-icon {
+            font-size: 48px;
+            color: var(--primary-light);
+            margin-bottom: 15px;
+        }
+        
+        .upload-text {
+            font-size: 18px;
+            color: var(--text-color);
+            margin-bottom: 10px;
+        }
+        
+        .upload-hint {
+            font-size: 14px;
+            color: var(--text-light);
+        }
+        
+        #fileInput {
+            display: none;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--border-color);
+            background: var(--card-color);
+            padding: 0 20px;
+            border-radius: var(--border-radius) var(--border-radius) 0 0;
+        }
+        
+        .tab {
+            padding: 15px 25px;
+            background: none;
+            border: none;
+            color: var(--text-light);
+            cursor: pointer;
+            font-size: 16px;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        
+        .tab:hover {
+            color: var(--text-color);
+        }
+        
+        .tab.active {
+            color: var(--primary-color);
+            font-weight: 500;
+        }
+        
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--primary-color);
+        }
+        
+        .tab-content {
+            display: none;
+            background: var(--card-color);
+            padding: 30px;
+            border-radius: 0 0 var(--border-radius) var(--border-radius);
+            box-shadow: var(--shadow);
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .summary-card {
+            background: linear-gradient(135deg, var(--card-color) 0%, rgba(76, 175, 80, 0.05) 100%);
+            padding: 20px;
+            border-radius: var(--border-radius);
+            border-left: 4px solid var(--primary-color);
+            box-shadow: var(--shadow);
+        }
+        
+        .summary-card h3 {
+            font-size: 14px;
+            color: var(--text-light);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .summary-card .value {
+            font-size: 32px;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+        
+        .summary-card .unit {
+            font-size: 14px;
+            color: var(--text-light);
+            margin-left: 5px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        th {
+            background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary-color) 100%);
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 500;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        tr:hover {
+            background: rgba(76, 175, 80, 0.05);
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin: 30px 0;
+            padding: 20px;
+            background: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+        }
+        
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--border-color);
+        }
+        
+        .chart-title {
+            font-size: 18px;
+            font-weight: 500;
+            color: var(--text-color);
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-hover);
+        }
+        
+        .btn-secondary {
+            background: var(--accent-color);
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: var(--secondary-accent);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-hover);
+        }
+        
+        .export-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-light);
+        }
+        
+        .spinner {
+            border: 3px solid var(--border-color);
+            border-top: 3px solid var(--primary-color);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .section-title {
+            font-size: 20px;
+            font-weight: 500;
+            color: var(--primary-dark);
+            margin: 30px 0 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--primary-light);
+        }
+        
+        .info-box {
+            background: rgba(25, 118, 210, 0.05);
+            border-left: 4px solid var(--accent-color);
+            padding: 15px 20px;
+            border-radius: var(--border-radius);
+            margin: 20px 0;
+        }
+        
+        .info-box p {
+            margin: 5px 0;
+            color: var(--text-color);
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        .table-container {
+            overflow-x: auto;
+            margin: 20px 0;
+        }
+        
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                text-align: center;
+                gap: 10px;
+            }
+
+            .tabs {
+                flex-wrap: wrap;
+                padding: 10px;
+            }
+
+            .tab {
+                padding: 10px 15px;
+                font-size: 14px;
+            }
+
+            .summary-grid {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            }
+
+            .chart-container {
+                height: 300px;
+            }
+
+            .export-buttons {
+                flex-direction: column;
+            }
+
+            /* Responsivo para seção informativa */
+            .container > div:first-child {
+                padding: 15px !important;
+            }
+
+            .container > div:first-child h3 {
+                font-size: 16px !important;
+            }
+
+            .container > div:first-child > div:first-child {
+                flex-direction: column !important;
+                gap: 8px !important;
+            }
+
+            /* Responsivo para rodapé */
+            footer > div > div:first-child {
+                flex-direction: column !important;
+                gap: 15px !important;
+                text-align: center;
+            }
+
+            footer > div > div:first-child > div:last-child {
+                font-size: 12px !important;
+            }
+        }
+        
+        #noDataMessage {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-light);
+        }
+        
+        #noDataMessage .icon {
+            font-size: 64px;
+            color: var(--border-color);
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-content">
+            <div class="app-title">
+                <span class="icon">🌲📈</span>
+                <div>
+                    <h1>Planilha Florestal Analytics</h1>
+                    <div class="subtitle">Companheiro do Planilha Florestal App • Análise de dados coletados em campo</div>
+                </div>
+            </div>
+            <div style="text-align: right; color: rgba(255,255,255,0.9); font-size: 12px;">
+                <div style="margin-bottom: 4px;">
+                    <strong>Planilha Florestal</strong>
+                </div>
+                <div style="opacity: 0.8;">
+                    Analytics • 🗋 Em Testes
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Informações do Planilha Florestal -->
+        <div style="background: linear-gradient(135deg, rgba(46, 125, 50, 0.05) 0%, rgba(25, 118, 210, 0.05) 100%);
+                    border: 1px solid rgba(46, 125, 50, 0.2);
+                    border-radius: var(--border-radius);
+                    padding: 20px;
+                    margin-bottom: 30px;
+                    text-align: center;">
+            <div style="display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 15px;">
+                <span style="font-size: 24px;">🌲</span>
+                <h3 style="margin: 0; color: var(--primary-color); font-size: 18px;">
+                    Planilha Florestal Analytics - Ferramenta de Análise
+                </h3>
+                <span style="font-size: 24px;">📊</span>
+            </div>
+            <p style="margin: 0; color: var(--text-color); font-size: 14px; line-height: 1.5;">
+                Esta ferramenta complementa o <strong>Planilha Florestal App</strong> (PWA para coleta de dados em campo).
+                Importe os arquivos CSV gerados pelo app de campo para realizar análises fitossociológicas completas,
+                incluindo parâmetros estruturais, índices de diversidade, curvas de acumulação e padrões espaciais.
+            </p>
+            <div style="margin-top: 12px; font-size: 12px; color: var(--text-light);">
+                <strong>💡 Dica:</strong> Exporte seus dados do Planilha Florestal App em formato CSV e carregue aqui para análise
+            </div>
+        </div>
+
+        <div class="upload-section">
+            <!-- Passo 1: Configurar área -->
+            <div id="stepConfig" style="padding: 30px; background: linear-gradient(135deg, rgba(76, 175, 80, 0.05) 0%, rgba(25, 118, 210, 0.05) 100%); border-radius: 8px; border: 1px solid var(--primary-light); margin-bottom: 20px;">
+                <h2 style="margin-top: 0; color: var(--primary-color); font-size: 20px; display: flex; align-items: center; gap: 10px;">
+                    <span style="background: var(--primary-color); color: white; width: 30px; height: 30px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 14px;">1</span>
+                    Configuração da Área Amostral
+                </h2>
+                <div style="display: flex; gap: 30px; align-items: flex-start; flex-wrap: wrap; margin-top: 20px;">
+                    <div style="flex: 1; min-width: 200px;">
+                        <label for="plotSize" style="display: block; margin-bottom: 8px; font-weight: 500; color: var(--text-color);">
+                            Tamanho da Parcela (m²): <span style="color: var(--error-color);">*</span>
+                        </label>
+                        <input type="number" id="plotSize" value="400" min="1" step="0.1"
+                               style="padding: 10px 14px; border: 2px solid var(--border-color); 
+                                      border-radius: 6px; width: 100%; font-size: 16px;
+                                      transition: border-color 0.3s;">
+                        <small style="color: var(--text-light); display: block; margin-top: 5px;">
+                            Área de cada unidade amostral
+                        </small>
+                    </div>
+                    <div style="flex: 1; min-width: 200px; padding: 10px; background: white; border-radius: 6px; border: 1px solid var(--border-color);">
+                        <strong style="color: var(--primary-dark); display: block; margin-bottom: 8px;">Tamanhos comuns:</strong>
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                            <button class="size-preset" data-size="100" style="padding: 6px 12px; background: var(--background-color); border: 1px solid var(--border-color); border-radius: 4px; cursor: pointer; font-size: 14px;">100 m² (10×10)</button>
+                            <button class="size-preset" data-size="400" style="padding: 6px 12px; background: var(--primary-light); color: white; border: 1px solid var(--primary-color); border-radius: 4px; cursor: pointer; font-size: 14px;">400 m² (20×20)</button>
+                            <button class="size-preset" data-size="500" style="padding: 6px 12px; background: var(--background-color); border: 1px solid var(--border-color); border-radius: 4px; cursor: pointer; font-size: 14px;">500 m² (10×50)</button>
+                            <button class="size-preset" data-size="600" style="padding: 6px 12px; background: var(--background-color); border: 1px solid var(--border-color); border-radius: 4px; cursor: pointer; font-size: 14px;">600 m² (20×30)</button>
+                            <button class="size-preset" data-size="1000" style="padding: 6px 12px; background: var(--background-color); border: 1px solid var(--border-color); border-radius: 4px; cursor: pointer; font-size: 14px;">1000 m² (20×50)</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="configStatus" style="margin-top: 15px; padding: 10px; background: rgba(76, 175, 80, 0.1); border-radius: 4px; color: var(--primary-dark); display: none;">
+                    <strong>✓ Área configurada:</strong> <span id="configStatusText"></span>
+                </div>
+            </div>
+            
+            <!-- Passo 2: Upload do arquivo -->
+            <div id="stepUpload" style="opacity: 0.5; pointer-events: none; transition: opacity 0.3s;">
+                <h2 style="margin-top: 0; color: var(--text-light); font-size: 20px; display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+                    <span style="background: var(--border-color); color: white; width: 30px; height: 30px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 14px;">2</span>
+                    Upload do Arquivo
+                </h2>
+                <div class="upload-area" id="uploadArea" style="border-color: var(--border-color);">
+                    <div class="upload-icon">📁</div>
+                    <div class="upload-text">Clique ou arraste o arquivo CSV aqui</div>
+                    <div class="upload-hint">Formato aceito: CSV exportado do Planilha Florestal App</div>
+                    <div style="font-size: 12px; color: var(--text-light); margin-top: 8px;">
+                        Também aceita CSVs de outros inventários com estrutura compatível
+                    </div>
+                </div>
+            </div>
+            <input type="file" id="fileInput" accept=".csv" disabled>
+            
+            <div id="areaInfo" style="margin-top: 20px; padding: 15px; background: rgba(25, 118, 210, 0.05); border-radius: 8px; border: 1px solid rgba(25, 118, 210, 0.2); display: none;">
+                <h3 style="margin-top: 0; color: var(--accent-color); font-size: 16px;">Informações da Amostragem</h3>
+                <div id="areaInfoContent"></div>
+            </div>
+        </div>
+
+        <div id="resultsSection" class="hidden">
+            <div class="tabs">
+                <button class="tab active" data-tab="summary">Resumo</button>
+                <button class="tab" data-tab="structure">Estrutura</button>
+                <button class="tab" data-tab="phytosociology">Fitossociologia</button>
+                <button class="tab" data-tab="accumulation">Curva de Acumulação</button>
+                <button class="tab" data-tab="diversity">Diversidade</button>
+                <button class="tab" data-tab="spatial">Padrão Espacial</button>
+            </div>
+
+            <div id="summary" class="tab-content active">
+                <h2 class="section-title">Resumo dos Resultados</h2>
+                <div class="summary-grid" id="summaryGrid"></div>
+                <div class="info-box">
+                    <h3>Informações do Inventário</h3>
+                    <p id="projectInfo"></p>
+                </div>
+            </div>
+
+            <div id="structure" class="tab-content">
+                <h2 class="section-title">Estrutura da Floresta</h2>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 30px;">
+                    <div>
+                        <div class="chart-header">
+                            <div class="chart-title">Distribuição Diamétrica (DAP)</div>
+                        </div>
+                        <div style="position: relative; height: 400px; background: white; border-radius: var(--border-radius); box-shadow: var(--shadow); padding: 20px;">
+                            <canvas id="dapHistogram"></canvas>
+                        </div>
+                        <div class="info-box" style="margin-top: 15px;">
+                            <p id="dapHistogramInfo"></p>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="chart-header">
+                            <div class="chart-title">Distribuição de Altura</div>
+                        </div>
+                        <div style="position: relative; height: 400px; background: white; border-radius: var(--border-radius); box-shadow: var(--shadow); padding: 20px;">
+                            <canvas id="heightHistogram"></canvas>
+                        </div>
+                        <div class="info-box" style="margin-top: 15px;">
+                            <p id="heightHistogramInfo"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="export-buttons">
+                    <button class="btn btn-primary" onclick="exportChart('dapHistogram')">
+                        📥 Exportar Histograma DAP
+                    </button>
+                    <button class="btn btn-primary" onclick="exportChart('heightHistogram')">
+                        📥 Exportar Histograma Altura
+                    </button>
+                </div>
+            </div>
+
+            <div id="phytosociology" class="tab-content">
+                <h2 class="section-title">Tabela Fitossociológica</h2>
+                <div class="table-container">
+                    <table id="phytoTable"></table>
+                </div>
+                <div class="export-buttons">
+                    <button class="btn btn-primary" onclick="exportTableToCSV()">
+                        📥 Exportar Tabela CSV
+                    </button>
+                </div>
+            </div>
+
+            <div id="accumulation" class="tab-content">
+                <h2 class="section-title">Curva de Acumulação de Espécies</h2>
+                <div class="chart-container">
+                    <canvas id="accumulationChart"></canvas>
+                </div>
+                <div class="info-box">
+                    <h3>Interpretação</h3>
+                    <p id="accumulationInterpretation"></p>
+                </div>
+                <div class="export-buttons">
+                    <button class="btn btn-primary" onclick="exportChart('accumulationChart')">
+                        📥 Exportar Gráfico
+                    </button>
+                </div>
+            </div>
+
+            <div id="diversity" class="tab-content">
+                <h2 class="section-title">Índices de Diversidade</h2>
+                <div class="summary-grid">
+                    <div class="summary-card">
+                        <h3>Índice de Shannon (H')</h3>
+                        <div class="value" id="shannonIndex">-</div>
+                    </div>
+                    <div class="summary-card">
+                        <h3>Equabilidade de Pielou (J)</h3>
+                        <div class="value" id="pielouIndex">-</div>
+                    </div>
+                    <div class="summary-card">
+                        <h3>Riqueza de Espécies (S)</h3>
+                        <div class="value" id="speciesRichness">-</div>
+                    </div>
+                    <div class="summary-card">
+                        <h3>Dominância de Simpson (D)</h3>
+                        <div class="value" id="simpsonIndex">-</div>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="diversityChart"></canvas>
+                </div>
+            </div>
+
+            <div id="spatial" class="tab-content">
+                <h2 class="section-title">Padrão Espacial - Índice de Morisita</h2>
+                <div class="chart-container">
+                    <canvas id="spatialChart"></canvas>
+                </div>
+                <div class="table-container">
+                    <table id="morisitaTable"></table>
+                </div>
+                <div class="info-box">
+                    <h3>Interpretação</h3>
+                    <p>Índice de Morisita (I):</p>
+                    <ul style="margin-left: 20px;">
+                        <li>I > Limite de Agregação: Distribuição agregada (agrupada)</li>
+                        <li>I < Limite de Uniformidade: Distribuição uniforme (regular)</li>
+                        <li>Entre os limites: Distribuição aleatória</li>
+                    </ul>
+                    <p style="margin-top: 10px;">Os limites são calculados usando distribuição qui-quadrado com α = 0.05</p>
+                </div>
+                <div class="export-buttons">
+                    <button class="btn btn-primary" onclick="exportChart('spatialChart')">
+                        📥 Exportar Gráfico
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="noDataMessage">
+            <div class="icon">🌲📊</div>
+            <h2>Nenhum dado carregado</h2>
+            <p>Configure o tamanho da parcela e faça upload de um arquivo CSV do Planilha Florestal App para começar a análise</p>
+            <div style="margin-top: 15px; font-size: 14px; color: var(--text-light);">
+                💡 Exporte seus dados do app de coleta em formato CSV e importe aqui
+            </div>
+        </div>
+    </div>
+
+    <!-- Rodapé -->
+    <footer style="background: var(--background-color);
+                  border-top: 1px solid var(--border-color);
+                  padding: 20px 0;
+                  margin-top: 40px;
+                  text-align: center;">
+        <div style="max-width: 1400px; margin: 0 auto; padding: 0 20px;">
+            <div style="display: flex; justify-content: center; align-items: center; gap: 30px; flex-wrap: wrap; margin-bottom: 15px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 16px;">🌲</span>
+                    <strong style="color: var(--primary-color);">Planilha Florestal</strong>
+                    <span style="color: var(--text-light);">• Sistema de Inventário</span>
+                </div>
+                <div style="color: var(--text-light); font-size: 14px;">
+                    <strong>Coleta:</strong> App PWA • <strong>Análise:</strong> Analytics (Em Testes)
+                </div>
+            </div>
+            <div style="font-size: 12px; color: var(--text-light); line-height: 1.4;">
+                Desenvolvido por <strong>Pedro Higuchi</strong> •
+                Ideal para engenheiros florestais, técnicos e pesquisadores •
+                <span style="color: var(--warning-color); font-weight: bold;">🗋 EM TESTES</span> - Use por sua conta e risco
+            </div>
+            <div style="margin-top: 10px; font-size: 11px; color: var(--text-light); opacity: 0.8;">
+                Para suporte: higuchip@gmail.com •
+                <a href="https://github.com/higuchip/inventario_app" style="color: var(--primary-color); text-decoration: none;">GitHub</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Variáveis globais
+        let data = [];
+        let processedData = {};
+        let plotSizeM2 = 400; // Tamanho padrão da parcela em m²
+        let plotSizeConfigured = false;
+        
+        // Configuração do tamanho da parcela
+        const plotSizeInput = document.getElementById('plotSize');
+        const fileInput = document.getElementById('fileInput');
+        const uploadArea = document.getElementById('uploadArea');
+        const stepUpload = document.getElementById('stepUpload');
+        
+        // Função para habilitar upload
+        function enableUpload() {
+            plotSizeConfigured = true;
+            stepUpload.style.opacity = '1';
+            stepUpload.style.pointerEvents = 'auto';
+            fileInput.disabled = false;
+            uploadArea.style.borderColor = 'var(--primary-light)';
+            
+            // Mostrar status de configuração
+            const configStatus = document.getElementById('configStatus');
+            const configStatusText = document.getElementById('configStatusText');
+            configStatus.style.display = 'block';
+            configStatusText.textContent = `Parcelas de ${plotSizeM2} m²`;
+            
+            // Atualizar cor do número do passo 2
+            const step2Number = stepUpload.querySelector('span');
+            step2Number.style.background = 'var(--primary-color)';
+            const step2Title = stepUpload.querySelector('h2');
+            step2Title.style.color = 'var(--primary-dark)';
+        }
+        
+        // Event listener para mudança no tamanho da parcela
+        plotSizeInput.addEventListener('input', function() {
+            const value = parseFloat(this.value);
+            if (value && value > 0) {
+                plotSizeM2 = value;
+                enableUpload();
+                
+                // Se já houver dados carregados, reprocessar
+                if (data.length > 0) {
+                    processData();
+                    showResults();
+                }
+            }
+        });
+        
+        // Validação inicial ao carregar a página
+        plotSizeInput.addEventListener('change', function() {
+            if (!this.value || parseFloat(this.value) <= 0) {
+                this.value = 400;
+                plotSizeM2 = 400;
+            }
+            enableUpload();
+        });
+        
+        // Botões de preset de tamanho
+        document.querySelectorAll('.size-preset').forEach(button => {
+            button.addEventListener('click', function() {
+                const size = parseFloat(this.dataset.size);
+                plotSizeInput.value = size;
+                plotSizeM2 = size;
+                
+                // Atualizar visual dos botões
+                document.querySelectorAll('.size-preset').forEach(btn => {
+                    btn.style.background = 'var(--background-color)';
+                    btn.style.color = 'var(--text-color)';
+                    btn.style.border = '1px solid var(--border-color)';
+                });
+                this.style.background = 'var(--primary-light)';
+                this.style.color = 'white';
+                this.style.border = '1px solid var(--primary-color)';
+                
+                enableUpload();
+                
+                // Se já houver dados, reprocessar
+                if (data.length > 0) {
+                    processData();
+                    showResults();
+                }
+            });
+        });
+        
+        // Configuração do upload - só funciona se área estiver configurada
+        uploadArea.addEventListener('click', () => {
+            if (plotSizeConfigured) {
+                fileInput.click();
+            } else {
+                alert('Por favor, configure o tamanho da parcela primeiro (Passo 1)');
+                plotSizeInput.focus();
+            }
+        });
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            if (plotSizeConfigured) {
+                uploadArea.classList.add('dragover');
+            }
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            if (!plotSizeConfigured) {
+                alert('Por favor, configure o tamanho da parcela primeiro (Passo 1)');
+                plotSizeInput.focus();
+                return;
+            }
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                processFile(files[0]);
+            }
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0 && plotSizeConfigured) {
+                processFile(e.target.files[0]);
+            }
+        });
+        
+        // Inicializar com valor padrão
+        window.addEventListener('DOMContentLoaded', () => {
+            // Forçar validação inicial
+            if (plotSizeInput.value && parseFloat(plotSizeInput.value) > 0) {
+                plotSizeM2 = parseFloat(plotSizeInput.value);
+                enableUpload();
+            }
+        });
+        
+        // Atualizar informações da área
+        function updateAreaInfo() {
+            const areaInfoDiv = document.getElementById('areaInfo');
+            const areaInfoContent = document.getElementById('areaInfoContent');
+            
+            if (data.length > 0) {
+                const parcelas = [...new Set(data.map(d => d.parcela))];
+                const nParcelas = parcelas.length;
+                const areaTotalM2 = nParcelas * plotSizeM2;
+                const areaTotalHa = areaTotalM2 / 10000;
+                
+                areaInfoDiv.style.display = 'block';
+                areaInfoContent.innerHTML = `
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div>
+                            <strong style="color: var(--text-light);">Tamanho da parcela:</strong><br>
+                            <span style="font-size: 18px; color: var(--primary-dark);">${plotSizeM2} m²</span>
+                        </div>
+                        <div>
+                            <strong style="color: var(--text-light);">N° de parcelas:</strong><br>
+                            <span style="font-size: 18px; color: var(--primary-dark);">${nParcelas}</span>
+                        </div>
+                        <div>
+                            <strong style="color: var(--text-light);">Área total amostrada:</strong><br>
+                            <span style="font-size: 18px; color: var(--primary-dark);">${areaTotalM2.toLocaleString('pt-BR')} m²</span>
+                            <small style="color: var(--text-light);"> (${areaTotalHa.toFixed(2)} ha)</small>
+                        </div>
+                    </div>
+                `;
+            } else {
+                areaInfoDiv.style.display = 'none';
+            }
+        }
+        
+
+        
+        // Processar arquivo CSV
+        function processFile(file) {
+            Papa.parse(file, {
+                header: true,
+                delimiter: ';',
+                skipEmptyLines: true,
+                complete: function(results) {
+                    data = results.data;
+                    updateAreaInfo(); // Atualizar info da área após carregar dados
+                    processData();
+                    showResults();
+                },
+                error: function(error) {
+                    alert('Erro ao ler o arquivo: ' + error.message);
+                }
+            });
+        }
+        
+        // Processar dados
+        function processData() {
+            // Limpar e preparar dados
+            data = data.map(row => ({
+                parcela: row['Parcela'],
+                idArvore: row['ID Árvore'],
+                especie: row['Espécie'],
+                cap: parseFloat(row['CAP']?.replace(',', '.')) || 0,
+                altura: parseFloat(row['Altura']?.replace(',', '.')) || null,
+                latitude: parseFloat(row['Latitude']?.replace(',', '.')) || null,
+                longitude: parseFloat(row['Longitude']?.replace(',', '.')) || null,
+                troncoMultiplo: row['Tronco Múltiplo'] === 'Sim',
+                capsIndividuais: row['CAPs Individuais'] || ''
+            })).filter(row => row.especie && row.cap > 0);
+            
+            // Calcular DAP a partir do CAP e área basal
+            data.forEach(row => {
+                // Para troncos múltiplos, o CAP já vem calculado como equivalente
+                row.dap = row.cap / Math.PI; // DAP em cm
+                // Área basal: (π * DAP²) / 40000
+                // DAP em cm, resultado em m²
+                row.areaBasal = (Math.PI * Math.pow(row.dap, 2)) / 40000; // em m²
+            });
+            
+            // Log para debug
+            console.log('Dados processados:', data.length, 'árvores');
+            const parcelas = [...new Set(data.map(d => d.parcela))];
+            console.log('Parcelas:', parcelas.length);
+            const areaBasalTotal = data.reduce((sum, d) => sum + d.areaBasal, 0);
+            console.log('Área basal total:', areaBasalTotal.toFixed(4), 'm²');
+            const areaTotalHa = (parcelas.length * plotSizeM2) / 10000;
+            console.log('Área total:', areaTotalHa.toFixed(2), 'ha');
+            console.log('Área basal/ha:', (areaBasalTotal/areaTotalHa).toFixed(2), 'm²/ha');
+            
+            // Processar dados fitossociológicos
+            calculatePhytosociology();
+            calculateDiversity();
+            calculateAccumulationCurve();
+            calculateSpatialPattern();
+        }
+        
+        // Calcular parâmetros fitossociológicos
+        function calculatePhytosociology() {
+            const species = {};
+            const totalIndividuals = data.length;
+            const parcelas = [...new Set(data.map(d => d.parcela))];
+            const totalParcelas = parcelas.length;
+            const totalBasalArea = data.reduce((sum, d) => sum + d.areaBasal, 0);
+            
+            // Usar o tamanho da parcela definido pelo usuário
+            const areaTotalha = (totalParcelas * plotSizeM2) / 10000; // conversão para hectares
+            
+            // Agrupar por espécie
+            data.forEach(row => {
+                if (!species[row.especie]) {
+                    species[row.especie] = {
+                        name: row.especie,
+                        individuals: [],
+                        parcelas: new Set(),
+                        totalBasalArea: 0
+                    };
+                }
+                species[row.especie].individuals.push(row);
+                species[row.especie].parcelas.add(row.parcela);
+                species[row.especie].totalBasalArea += row.areaBasal;
+            });
+            
+            // Soma das frequências absolutas para cálculo de FR
+            const totalFA = Object.values(species).reduce((sum, sp) => 
+                sum + sp.parcelas.size, 0
+            );
+            
+            // Calcular parâmetros
+            processedData.phytosociology = Object.values(species).map(sp => {
+                const n = sp.individuals.length;
+                const fa = sp.parcelas.size;
+                const g = sp.totalBasalArea;
+                
+                // Densidade
+                const da = n / areaTotalha; // Densidade absoluta (ind/ha)
+                const dr = (n / totalIndividuals) * 100; // Densidade relativa (%)
+                
+                // Frequência
+                const faa = (fa / totalParcelas) * 100; // Frequência absoluta (%)
+                const fr = (fa / totalFA) * 100; // Frequência relativa (%)
+                
+                // Dominância
+                const doa = g / areaTotalha; // Dominância absoluta (m²/ha)
+                const dor = (g / totalBasalArea) * 100; // Dominância relativa (%)
+                
+                // IVI - Valor de Importância (média dos três parâmetros relativos)
+                const ivi = (dr + dor + fr) / 3;
+                
+                return {
+                    especie: sp.name,
+                    n: n,
+                    da: da,
+                    dr: dr,
+                    fa: faa,
+                    fr: fr,
+                    doa: doa,
+                    dor: dor,
+                    ivi: ivi
+                };
+            }).sort((a, b) => b.ivi - a.ivi);
+        }
+        
+        // Calcular índices de diversidade
+        function calculateDiversity() {
+            const speciesCount = {};
+            data.forEach(row => {
+                speciesCount[row.especie] = (speciesCount[row.especie] || 0) + 1;
+            });
+            
+            const N = data.length;
+            const S = Object.keys(speciesCount).length;
+            
+            // Shannon
+            let shannon = 0;
+            Object.values(speciesCount).forEach(count => {
+                const pi = count / N;
+                if (pi > 0) {
+                    shannon -= pi * Math.log(pi);
+                }
+            });
+            
+            // Pielou
+            const pielou = shannon / Math.log(S);
+            
+            // Simpson
+            let simpson = 0;
+            Object.values(speciesCount).forEach(count => {
+                const pi = count / N;
+                simpson += pi * pi;
+            });
+            
+            processedData.diversity = {
+                shannon: shannon.toFixed(3),
+                pielou: pielou.toFixed(3),
+                richness: S,
+                simpson: (1 - simpson).toFixed(3),
+                totalIndividuals: N
+            };
+        }
+        
+        // Calcular curva de acumulação com aleatorização
+        function calculateAccumulationCurve() {
+            const iterations = 100; // Número de iterações para aleatorização
+            const parcelas = [...new Set(data.map(d => d.parcela))].sort();
+            const nParcelas = parcelas.length;
+            
+            // Criar matriz de presença/ausência (parcelas x espécies)
+            const speciesList = [...new Set(data.map(d => d.especie))];
+            const presenceMatrix = {};
+            
+            parcelas.forEach(parcela => {
+                presenceMatrix[parcela] = {};
+                speciesList.forEach(especie => {
+                    presenceMatrix[parcela][especie] = 0;
+                });
+            });
+            
+            // Preencher matriz de presença
+            data.forEach(row => {
+                if (presenceMatrix[row.parcela] && presenceMatrix[row.parcela][row.especie] !== undefined) {
+                    presenceMatrix[row.parcela][row.especie] = 1;
+                }
+            });
+            
+            // Calcular curva de acumulação com aleatorização
+            const accumulation = [];
+            
+            for (let sampleSize = 1; sampleSize <= nParcelas; sampleSize++) {
+                const richnessValues = [];
+                
+                for (let iter = 0; iter < iterations; iter++) {
+                    // Amostrar parcelas aleatoriamente
+                    const sampledParcelas = shuffleArray([...parcelas]).slice(0, sampleSize);
+                    
+                    // Contar espécies únicas nas parcelas amostradas
+                    const speciesFound = new Set();
+                    sampledParcelas.forEach(parcela => {
+                        speciesList.forEach(especie => {
+                            if (presenceMatrix[parcela][especie] === 1) {
+                                speciesFound.add(especie);
+                            }
+                        });
+                    });
+                    
+                    richnessValues.push(speciesFound.size);
+                }
+                
+                // Calcular média e desvio padrão
+                const mean = richnessValues.reduce((a, b) => a + b, 0) / richnessValues.length;
+                const std = Math.sqrt(richnessValues.reduce((sum, val) => 
+                    sum + Math.pow(val - mean, 2), 0) / richnessValues.length);
+                
+                accumulation.push({
+                    parcela: sampleSize,
+                    species: mean,
+                    std: std,
+                    min: mean - 1.96 * std, // IC 95%
+                    max: mean + 1.96 * std  // IC 95%
+                });
+            }
+            
+            processedData.accumulation = accumulation;
+            
+            // Calcular estimadores de riqueza
+            calculateRichnessEstimators();
+        }
+        
+        // Função auxiliar para embaralhar array (Fisher-Yates)
+        function shuffleArray(array) {
+            const arr = [...array];
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+        
+        // Calcular estimadores de riqueza (Chao, Jackknife, Bootstrap)
+        function calculateRichnessEstimators() {
+            const parcelas = [...new Set(data.map(d => d.parcela))];
+            const especies = [...new Set(data.map(d => d.especie))];
+            const N = parcelas.length; // Número de parcelas
+            const S0 = especies.length; // Riqueza observada
+            
+            // Contar ocorrências de cada espécie por parcela
+            const speciesOccurrence = {};
+            especies.forEach(esp => {
+                speciesOccurrence[esp] = 0;
+            });
+            
+            parcelas.forEach(parcela => {
+                const especiesInParcela = [...new Set(data.filter(d => d.parcela === parcela).map(d => d.especie))];
+                especiesInParcela.forEach(esp => {
+                    speciesOccurrence[esp]++;
+                });
+            });
+            
+            // Contar singletons (a1) e doubletons (a2)
+            let a1 = 0; // Espécies que ocorrem em apenas uma parcela
+            let a2 = 0; // Espécies que ocorrem em duas parcelas
+            
+            Object.values(speciesOccurrence).forEach(count => {
+                if (count === 1) a1++;
+                if (count === 2) a2++;
+            });
+            
+            // Calcular estimadores
+            const estimators = {
+                observed: S0,
+                chao1: a2 > 0 ? S0 + (a1 * a1) / (2 * a2) * ((N - 1) / N) : S0 + a1,
+                chao2BC: S0 + (a1 * (a1 - 1)) / (2 * (a2 + 1)) * ((N - 1) / N),
+                jackknife1: S0 + a1 * ((N - 1) / N),
+                jackknife2: N > 1 ? S0 + (a1 / 2) * ((N - 3) / N) - a2 * Math.pow(N - 2, 2) / (N * (N - 1)) : S0,
+                bootstrap: 0,
+                singletons: a1,
+                doubletons: a2,
+                nParcelas: N
+            };
+            
+            // Bootstrap
+            let bootstrapSum = 0;
+            Object.values(speciesOccurrence).forEach(count => {
+                const p = count / N;
+                bootstrapSum += Math.pow(1 - p, N);
+            });
+            estimators.bootstrap = S0 + bootstrapSum;
+            
+            processedData.estimators = estimators;
+        }
+        
+        // Calcular padrão espacial (Índice de Morisita)
+        function calculateSpatialPattern() {
+            // Pegar as 5 espécies mais abundantes
+            const speciesCount = {};
+            data.forEach(row => {
+                speciesCount[row.especie] = (speciesCount[row.especie] || 0) + 1;
+            });
+            
+            const topSpecies = Object.entries(speciesCount)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5)
+                .map(([species]) => species);
+            
+            const parcelas = [...new Set(data.map(d => d.parcela))];
+            const nplots = parcelas.length;
+            
+            processedData.morisita = topSpecies.map(species => {
+                const speciesData = data.filter(d => d.especie === species);
+                const ni = speciesData.length; // número total de indivíduos da espécie
+                
+                // Criar tabela de contingência (parcelas x espécie)
+                const parcelaCounts = {};
+                parcelas.forEach(p => {
+                    parcelaCounts[p] = speciesData.filter(d => d.parcela === p).length;
+                });
+                
+                // Calcular soma de xi² - ni (onde xi é o número de indivíduos por parcela)
+                let sumXiSquaredMinusNi = 0;
+                Object.values(parcelaCounts).forEach(xi => {
+                    sumXiSquaredMinusNi += (xi * xi) - xi;
+                });
+                
+                // Índice de Morisita: Id = nplots * (Σ(xi²) - Σxi) / (ni * (ni - 1))
+                // Simplificado: Id = nplots * Σ(xi² - xi) / (ni * (ni - 1))
+                const morisita = ni > 1 ? 
+                    (nplots * sumXiSquaredMinusNi) / (ni * (ni - 1)) : 0;
+                
+                // Calcular limites de agregação e uniformidade usando qui-quadrado
+                // Para α = 0.05
+                const chiSquareUpper = getChiSquareValue(nplots - 1, 0.95); // 95% percentil
+                const chiSquareLower = getChiSquareValue(nplots - 1, 0.05); // 5% percentil
+                
+                const limAgr = ni > 1 ? 
+                    (chiSquareUpper - nplots + ni) / (ni - 1) : 0;
+                const limUni = ni > 1 ? 
+                    (chiSquareLower - nplots + ni) / (ni - 1) : 0;
+                
+                // Determinar padrão espacial
+                let pattern = 'Aleatório';
+                if (morisita > limAgr) {
+                    pattern = 'Agregado';
+                } else if (morisita < limUni) {
+                    pattern = 'Uniforme';
+                }
+                
+                return {
+                    especie: species,
+                    n: ni,
+                    morisita: morisita.toFixed(3),
+                    limAgr: limAgr.toFixed(3),
+                    limUni: limUni.toFixed(3),
+                    pattern: pattern
+                };
+            });
+        }
+        
+        // Função auxiliar para obter valores de qui-quadrado
+        function getChiSquareValue(df, percentile) {
+            // Aproximação usando tabela simplificada para valores comuns
+            // Para uma implementação completa, seria necessário usar uma biblioteca estatística
+            const chiSquareTable = {
+                1: {0.05: 0.004, 0.95: 3.841},
+                2: {0.05: 0.103, 0.95: 5.991},
+                3: {0.05: 0.352, 0.95: 7.815},
+                4: {0.05: 0.711, 0.95: 9.488},
+                5: {0.05: 1.145, 0.95: 11.070},
+                6: {0.05: 1.635, 0.95: 12.592},
+                7: {0.05: 2.167, 0.95: 14.067},
+                8: {0.05: 2.733, 0.95: 15.507},
+                9: {0.05: 3.325, 0.95: 16.919},
+                10: {0.05: 3.940, 0.95: 18.307},
+                15: {0.05: 7.261, 0.95: 24.996},
+                20: {0.05: 10.851, 0.95: 31.410},
+                30: {0.05: 18.493, 0.95: 43.773},
+                50: {0.05: 34.764, 0.95: 67.505}
+            };
+            
+            // Se o df exato não estiver na tabela, interpolar ou usar o valor mais próximo
+            if (chiSquareTable[df]) {
+                return chiSquareTable[df][percentile];
+            }
+            
+            // Interpolação linear para valores não tabelados
+            const dfs = Object.keys(chiSquareTable).map(Number).sort((a, b) => a - b);
+            let lowerDf = 1, upperDf = 50;
+            
+            for (let i = 0; i < dfs.length - 1; i++) {
+                if (dfs[i] <= df && dfs[i + 1] >= df) {
+                    lowerDf = dfs[i];
+                    upperDf = dfs[i + 1];
+                    break;
+                }
+            }
+            
+            if (df > 50) return chiSquareTable[50][percentile];
+            if (df < 1) return chiSquareTable[1][percentile];
+            
+            const lowerValue = chiSquareTable[lowerDf][percentile];
+            const upperValue = chiSquareTable[upperDf][percentile];
+            const ratio = (df - lowerDf) / (upperDf - lowerDf);
+            
+            return lowerValue + ratio * (upperValue - lowerValue);
+        }
+        
+        // Mostrar resultados
+        function showResults() {
+            document.getElementById('noDataMessage').classList.add('hidden');
+            document.getElementById('resultsSection').classList.remove('hidden');
+            
+            // Atualizar resumo
+            updateSummary();
+            
+            // Criar tabela fitossociológica
+            createPhytoTable();
+            
+            // Criar histogramas de estrutura
+            createStructureHistograms();
+            
+            // Criar gráficos
+            createAccumulationChart();
+            createDiversityChart();
+            createSpatialChart();
+            
+            // Atualizar índices
+            updateDiversityIndices();
+        }
+        
+        // Criar histogramas de estrutura (DAP e Altura)
+        function createStructureHistograms() {
+            // Dados de DAP
+            const dapValues = data.map(d => d.dap).filter(v => v > 0);
+            
+            // Calcular número de classes usando regra de Sturges
+            const nClasses = Math.ceil(1 + 3.322 * Math.log10(dapValues.length));
+            
+            // Calcular amplitude e tamanho das classes
+            const dapMin = Math.min(...dapValues);
+            const dapMax = Math.max(...dapValues);
+            const dapRange = dapMax - dapMin;
+            const dapClassWidth = dapRange / nClasses;
+            
+            // Criar classes e calcular frequências
+            const dapClasses = [];
+            const dapFrequencies = [];
+            const dapDensities = [];
+            
+            for (let i = 0; i < nClasses; i++) {
+                const lowerBound = dapMin + (i * dapClassWidth);
+                const upperBound = lowerBound + dapClassWidth;
+                const midPoint = (lowerBound + upperBound) / 2;
+                
+                const frequency = dapValues.filter(v => 
+                    i === nClasses - 1 ? v >= lowerBound && v <= upperBound : v >= lowerBound && v < upperBound
+                ).length;
+                
+                dapClasses.push(`${lowerBound.toFixed(1)}-${upperBound.toFixed(1)}`);
+                dapFrequencies.push(frequency);
+                // Densidade = frequência / (n * amplitude da classe)
+                dapDensities.push(frequency / (dapValues.length * dapClassWidth));
+            }
+            
+            // Criar histograma de DAP
+            const ctxDAP = document.getElementById('dapHistogram').getContext('2d');
+            new Chart(ctxDAP, {
+                type: 'bar',
+                data: {
+                    labels: dapClasses,
+                    datasets: [{
+                        label: 'Frequência',
+                        data: dapFrequencies,
+                        backgroundColor: 'rgba(46, 125, 50, 0.6)',
+                        borderColor: 'rgb(46, 125, 50)',
+                        borderWidth: 1,
+                        yAxisID: 'y'
+                    }, {
+                        label: 'Densidade',
+                        data: dapDensities.map((d, i) => ({
+                            x: i,
+                            y: d * dapValues.length * dapClassWidth // Escalar para visualização
+                        })),
+                        type: 'line',
+                        borderColor: 'rgb(255, 160, 0)',
+                        backgroundColor: 'rgba(255, 160, 0, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: false,
+                        yAxisID: 'y'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: false
+                        },
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Classes de DAP (cm)'
+                            }
+                        },
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Frequência'
+                            },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+            
+            // Informações do histograma de DAP
+            document.getElementById('dapHistogramInfo').innerHTML = `
+                <strong>Estatísticas:</strong> N = ${dapValues.length} | 
+                Classes (Sturges) = ${nClasses} | 
+                Amplitude da classe = ${dapClassWidth.toFixed(1)} cm | 
+                Intervalo = ${dapMin.toFixed(1)} - ${dapMax.toFixed(1)} cm
+            `;
+            
+            // Dados de Altura
+            const alturaValues = data.map(d => d.altura).filter(v => v && v > 0);
+
+            if (alturaValues.length > 0) {
+                // Calcular número de classes para altura
+                const nClassesAltura = Math.ceil(1 + 3.322 * Math.log10(alturaValues.length));
+
+                // Calcular amplitude e tamanho das classes
+                const alturaMin = Math.min(...alturaValues);
+                const alturaMax = Math.max(...alturaValues);
+                const alturaRange = alturaMax - alturaMin;
+                const alturaClassWidth = alturaRange / nClassesAltura;
+
+                // Criar classes e calcular frequências
+                const alturaClasses = [];
+                const alturaFrequencies = [];
+                const alturaDensities = [];
+
+                for (let i = 0; i < nClassesAltura; i++) {
+                    const lowerBound = alturaMin + (i * alturaClassWidth);
+                    const upperBound = lowerBound + alturaClassWidth;
+
+                    const frequency = alturaValues.filter(v =>
+                        i === nClassesAltura - 1 ? v >= lowerBound && v <= upperBound : v >= lowerBound && v < upperBound
+                    ).length;
+
+                    alturaClasses.push(`${lowerBound.toFixed(1)}-${upperBound.toFixed(1)}`);
+                    alturaFrequencies.push(frequency);
+                    alturaDensities.push(frequency / (alturaValues.length * alturaClassWidth));
+                }
+                
+                // Criar histograma de Altura
+                const ctxHeight = document.getElementById('heightHistogram').getContext('2d');
+                new Chart(ctxHeight, {
+                    type: 'bar',
+                    data: {
+                        labels: alturaClasses,
+                        datasets: [{
+                            label: 'Frequência',
+                            data: alturaFrequencies,
+                            backgroundColor: 'rgba(25, 118, 210, 0.6)',
+                            borderColor: 'rgb(25, 118, 210)',
+                            borderWidth: 1,
+                            yAxisID: 'y'
+                        }, {
+                            label: 'Densidade',
+                            data: alturaDensities.map((d, i) => ({
+                                x: i,
+                                y: d * alturaValues.length * alturaClassWidth
+                            })),
+                            type: 'line',
+                            borderColor: 'rgb(156, 39, 176)',
+                            backgroundColor: 'rgba(156, 39, 176, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: false,
+                            yAxisID: 'y'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: false
+                            },
+                            legend: {
+                                display: true,
+                                position: 'top'
+                            }
+                        },
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Classes de Altura (m)'
+                                }
+                            },
+                            y: {
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                title: {
+                                    display: true,
+                                    text: 'Frequência'
+                                },
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+                
+                // Informações do histograma de Altura
+                document.getElementById('heightHistogramInfo').innerHTML = `
+                    <strong>Estatísticas:</strong> N = ${alturaValues.length} |
+                    Classes (Sturges) = ${nClassesAltura} |
+                    Amplitude da classe = ${alturaClassWidth.toFixed(1)} m |
+                    Intervalo = ${alturaMin.toFixed(1)} - ${alturaMax.toFixed(1)} m
+                `;
+            } else {
+                // Se não há dados de altura, mostrar mensagem
+                const ctxHeight = document.getElementById('heightHistogram').getContext('2d');
+                ctxHeight.font = '16px Arial';
+                ctxHeight.fillStyle = '#999';
+                ctxHeight.textAlign = 'center';
+                ctxHeight.fillText('Dados de altura não disponíveis', 
+                    ctxHeight.canvas.width / 2, 
+                    ctxHeight.canvas.height / 2);
+                
+                document.getElementById('heightHistogramInfo').innerHTML = `
+                    <strong>Sem dados de altura para análise</strong>
+                `;
+            }
+        }
+        
+        // Atualizar resumo
+        function updateSummary() {
+            const summaryGrid = document.getElementById('summaryGrid');
+            const projectInfo = document.getElementById('projectInfo');
+            
+            const parcelas = [...new Set(data.map(d => d.parcela))];
+            const species = [...new Set(data.map(d => d.especie))];
+            const totalBasalArea = data.reduce((sum, d) => sum + d.areaBasal, 0);
+            
+            // Usar o tamanho da parcela definido pelo usuário
+            const areaTotalHa = (parcelas.length * plotSizeM2) / 10000; // em hectares
+            const areaBasalPorHa = totalBasalArea / areaTotalHa; // m²/ha
+            const densidadePorHa = data.length / areaTotalHa; // ind/ha
+            
+            // Estatísticas de DAP
+            const dapValues = data.map(d => d.dap).filter(v => v > 0);
+            const dapMean = dapValues.reduce((a, b) => a + b, 0) / dapValues.length;
+            const dapMin = Math.min(...dapValues);
+            const dapMax = Math.max(...dapValues);
+            const dapStd = Math.sqrt(dapValues.reduce((sum, v) => sum + Math.pow(v - dapMean, 2), 0) / dapValues.length);
+            const dapCV = (dapStd / dapMean) * 100; // Coeficiente de variação
+            
+            // Estatísticas de Altura (quando presente)
+            const alturaValues = data.map(d => d.altura).filter(v => v && v > 0);
+            let alturaStats = null;
+            if (alturaValues.length > 0) {
+                const alturaMean = alturaValues.reduce((a, b) => a + b, 0) / alturaValues.length;
+                const alturaMin = Math.min(...alturaValues);
+                const alturaMax = Math.max(...alturaValues);
+                const alturaStd = Math.sqrt(alturaValues.reduce((sum, v) => sum + Math.pow(v - alturaMean, 2), 0) / alturaValues.length);
+                const alturaCV = (alturaStd / alturaMean) * 100;
+                alturaStats = {
+                    n: alturaValues.length,
+                    mean: alturaMean,
+                    min: alturaMin,
+                    max: alturaMax,
+                    std: alturaStd,
+                    cv: alturaCV
+                };
+            }
+            
+            summaryGrid.innerHTML = `
+                <div class="summary-card">
+                    <h3>Densidade</h3>
+                    <div class="value">${densidadePorHa.toFixed(0)}<span class="unit">ind/ha</span></div>
+                </div>
+                <div class="summary-card">
+                    <h3>Espécies</h3>
+                    <div class="value">${species.length}</div>
+                </div>
+                <div class="summary-card">
+                    <h3>Parcelas</h3>
+                    <div class="value">${parcelas.length}</div>
+                </div>
+                <div class="summary-card">
+                    <h3>Área Basal</h3>
+                    <div class="value">${areaBasalPorHa.toFixed(2)}<span class="unit">m²/ha</span></div>
+                </div>
+            `;
+            
+            // Informações detalhadas
+            let statsHTML = `
+                <p><strong>Total de indivíduos amostrados:</strong> ${data.length}</p>
+                <p><strong>Área amostral total:</strong> ${areaTotalHa.toFixed(2)} ha (${parcelas.length} parcelas × ${plotSizeM2} m²)</p>
+                <p><strong>Área basal absoluta:</strong> ${totalBasalArea.toFixed(4)} m²</p>
+                <p><strong>Diversidade de Shannon (H'):</strong> ${processedData.diversity.shannon}</p>
+                <p><strong>Equabilidade de Pielou (J):</strong> ${processedData.diversity.pielou}</p>
+                
+                <h4 style="margin-top: 20px; margin-bottom: 10px; color: var(--primary-dark); border-bottom: 1px solid var(--border-color); padding-bottom: 5px;">
+                    Análise Estatística - DAP
+                </h4>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 15px;">
+                    <div><strong>Média:</strong> ${dapMean.toFixed(1)} cm</div>
+                    <div><strong>Desvio padrão:</strong> ${dapStd.toFixed(1)} cm</div>
+                    <div><strong>Mínimo:</strong> ${dapMin.toFixed(1)} cm</div>
+                    <div><strong>Máximo:</strong> ${dapMax.toFixed(1)} cm</div>
+                    <div><strong>CV:</strong> ${dapCV.toFixed(1)}%</div>
+                    <div><strong>N:</strong> ${dapValues.length}</div>
+                </div>
+            `;
+            
+            if (alturaStats) {
+                statsHTML += `
+                    <h4 style="margin-top: 20px; margin-bottom: 10px; color: var(--primary-dark); border-bottom: 1px solid var(--border-color); padding-bottom: 5px;">
+                        Análise Estatística - Altura
+                    </h4>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 15px;">
+                        <div><strong>Média:</strong> ${alturaStats.mean.toFixed(1)} m</div>
+                        <div><strong>Desvio padrão:</strong> ${alturaStats.std.toFixed(1)} m</div>
+                        <div><strong>Mínimo:</strong> ${alturaStats.min.toFixed(1)} m</div>
+                        <div><strong>Máximo:</strong> ${alturaStats.max.toFixed(1)} m</div>
+                        <div><strong>CV:</strong> ${alturaStats.cv.toFixed(1)}%</div>
+                        <div><strong>N:</strong> ${alturaStats.n} (${((alturaStats.n/data.length)*100).toFixed(0)}%)</div>
+                    </div>
+                `;
+            }
+            
+            projectInfo.innerHTML = statsHTML;
+            
+            // Atualizar informação da área após processar dados
+            updateAreaInfo();
+        }
+        
+        // Criar tabela fitossociológica
+        function createPhytoTable() {
+            const table = document.getElementById('phytoTable');
+            
+            let html = `
+                <thead>
+                    <tr>
+                        <th>Espécie</th>
+                        <th>N</th>
+                        <th>DA<br>(ind/ha)</th>
+                        <th>DR<br>(%)</th>
+                        <th>FA<br>(%)</th>
+                        <th>FR<br>(%)</th>
+                        <th>DoA<br>(m²/ha)</th>
+                        <th>DoR<br>(%)</th>
+                        <th>IVI</th>
+                    </tr>
+                </thead>
+                <tbody>
+            `;
+            
+            processedData.phytosociology.forEach(row => {
+                html += `
+                    <tr>
+                        <td>${row.especie}</td>
+                        <td>${row.n}</td>
+                        <td>${row.da.toFixed(2)}</td>
+                        <td>${row.dr.toFixed(2)}</td>
+                        <td>${row.fa.toFixed(2)}</td>
+                        <td>${row.fr.toFixed(2)}</td>
+                        <td>${row.doa.toFixed(2)}</td>
+                        <td>${row.dor.toFixed(2)}</td>
+                        <td><strong>${row.ivi.toFixed(2)}</strong></td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody>';
+            table.innerHTML = html;
+        }
+        
+        // Criar gráfico de curva de acumulação
+        function createAccumulationChart() {
+            const ctx = document.getElementById('accumulationChart').getContext('2d');
+            
+            // Preparar dados para o gráfico com intervalo de confiança
+            const labels = processedData.accumulation.map(d => `${d.parcela}`);
+            const mainData = processedData.accumulation.map(d => d.species);
+            const lowerBound = processedData.accumulation.map(d => Math.max(0, d.min));
+            const upperBound = processedData.accumulation.map(d => d.max);
+            
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Riqueza Média',
+                        data: mainData,
+                        borderColor: 'rgb(46, 125, 50)',
+                        backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: false,
+                        pointRadius: 4,
+                        pointBackgroundColor: 'rgb(46, 125, 50)'
+                    }, {
+                        label: 'IC 95% Superior',
+                        data: upperBound,
+                        borderColor: 'rgba(76, 175, 80, 0.3)',
+                        borderWidth: 1,
+                        borderDash: [5, 5],
+                        tension: 0.4,
+                        fill: false,
+                        pointRadius: 0
+                    }, {
+                        label: 'IC 95% Inferior',
+                        data: lowerBound,
+                        borderColor: 'rgba(76, 175, 80, 0.3)',
+                        borderWidth: 1,
+                        borderDash: [5, 5],
+                        tension: 0.4,
+                        fill: '-1',
+                        backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Curva de Acumulação de Espécies (100 permutações)'
+                        },
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const index = context.dataIndex;
+                                    if (context.datasetIndex === 0) {
+                                        const mean = context.parsed.y.toFixed(1);
+                                        const std = processedData.accumulation[index].std.toFixed(2);
+                                        return `Riqueza: ${mean} ± ${std}`;
+                                    }
+                                    return '';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Número de Espécies'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Número de Parcelas'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Interpretação com estimadores
+            const lastPoint = processedData.accumulation[processedData.accumulation.length - 1];
+            const penultimatePoint = processedData.accumulation[processedData.accumulation.length - 2];
+            const slope = lastPoint.species - penultimatePoint.species;
+            const est = processedData.estimators;
+            
+            let interpretation = `
+                <strong>Riqueza observada:</strong> ${est.observed} espécies em ${est.nParcelas} parcelas<br>
+                <strong>Taxa de incremento:</strong> ${slope.toFixed(2)} espécies/parcela (última parcela) - ${((slope/est.observed)*100).toFixed(1)}% do total observado<br>
+                <strong>Singletons:</strong> ${est.singletons} espécies (em apenas 1 parcela)<br>
+                <strong>Doubletons:</strong> ${est.doubletons} espécies (em 2 parcelas)<br><br>
+                
+                <strong>Estimadores de Riqueza Total:</strong><br>
+                • Chao 1: ${est.chao1.toFixed(0)} espécies<br>
+                • Chao 2 BC: ${est.chao2BC.toFixed(0)} espécies<br>
+                • Jackknife 1: ${est.jackknife1.toFixed(0)} espécies<br>
+                • Jackknife 2: ${est.jackknife2.toFixed(0)} espécies<br>
+                • Bootstrap: ${est.bootstrap.toFixed(0)} espécies<br><br>
+                
+                <strong>Completude amostral:</strong> ${((est.observed / est.chao1) * 100).toFixed(1)}% (S₀/Chao1)
+            `;
+            
+            document.getElementById('accumulationInterpretation').innerHTML = interpretation;
+        }
+        
+        // Criar gráfico de diversidade
+        function createDiversityChart() {
+            const ctx = document.getElementById('diversityChart').getContext('2d');
+            
+            const speciesCount = {};
+            data.forEach(row => {
+                speciesCount[row.especie] = (speciesCount[row.especie] || 0) + 1;
+            });
+            
+            const sortedSpecies = Object.entries(speciesCount)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 10);
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sortedSpecies.map(s => s[0]),
+                    datasets: [{
+                        label: 'Número de Indivíduos',
+                        data: sortedSpecies.map(s => s[1]),
+                        backgroundColor: 'rgba(25, 118, 210, 0.7)',
+                        borderColor: 'rgb(25, 118, 210)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Distribuição de Abundância das 10 Principais Espécies'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Número de Indivíduos'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Espécies'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Criar gráfico de padrão espacial
+        function createSpatialChart() {
+            const ctx = document.getElementById('spatialChart').getContext('2d');
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: processedData.morisita.map(d => d.especie),
+                    datasets: [{
+                        label: 'Índice de Morisita',
+                        data: processedData.morisita.map(d => parseFloat(d.morisita)),
+                        backgroundColor: processedData.morisita.map(d => 
+                            d.pattern === 'Agregado' ? 'rgba(255, 160, 0, 0.7)' :
+                            d.pattern === 'Uniforme' ? 'rgba(76, 175, 80, 0.7)' :
+                            'rgba(25, 118, 210, 0.7)'
+                        ),
+                        borderColor: processedData.morisita.map(d => 
+                            d.pattern === 'Agregado' ? 'rgb(255, 160, 0)' :
+                            d.pattern === 'Uniforme' ? 'rgb(76, 175, 80)' :
+                            'rgb(25, 118, 210)'
+                        ),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Índice de Morisita - Top 5 Espécies'
+                        },
+                        annotation: {
+                            annotations: {
+                                line1: {
+                                    type: 'line',
+                                    yMin: 1,
+                                    yMax: 1,
+                                    borderColor: 'rgb(255, 99, 132)',
+                                    borderWidth: 2,
+                                    borderDash: [5, 5]
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Índice de Morisita'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Criar tabela de Morisita
+            const table = document.getElementById('morisitaTable');
+            let html = `
+                <thead>
+                    <tr>
+                        <th>Espécie</th>
+                        <th>N° Indivíduos</th>
+                        <th>Índice de Morisita</th>
+                        <th>Limite Agregação</th>
+                        <th>Limite Uniformidade</th>
+                        <th>Padrão Espacial</th>
+                    </tr>
+                </thead>
+                <tbody>
+            `;
+            
+            processedData.morisita.forEach(row => {
+                html += `
+                    <tr>
+                        <td>${row.especie}</td>
+                        <td>${row.n}</td>
+                        <td>${row.morisita}</td>
+                        <td>${row.limAgr}</td>
+                        <td>${row.limUni}</td>
+                        <td><strong>${row.pattern}</strong></td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody>';
+            table.innerHTML = html;
+        }
+        
+        // Atualizar índices de diversidade
+        function updateDiversityIndices() {
+            document.getElementById('shannonIndex').textContent = processedData.diversity.shannon;
+            document.getElementById('pielouIndex').textContent = processedData.diversity.pielou;
+            document.getElementById('speciesRichness').textContent = processedData.diversity.richness;
+            document.getElementById('simpsonIndex').textContent = processedData.diversity.simpson;
+            
+        }
+        
+        // Sistema de tabs
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabId = tab.dataset.tab;
+                
+                // Atualizar tabs
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                
+                // Atualizar conteúdo
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+                document.getElementById(tabId).classList.add('active');
+            });
+        });
+        
+        // Função para exportar tabela como CSV
+        function exportTableToCSV() {
+            // Usar diretamente os dados processados para garantir formatação correta
+            if (!processedData.phytosociology || processedData.phytosociology.length === 0) {
+                alert('Não há dados para exportar');
+                return;
+            }
+            
+            let csv = '\ufeff'; // BOM para UTF-8
+            
+            // Cabeçalho
+            csv += 'Espécie;N;DA (ind/ha);DR (%);FA (%);FR (%);DoA (m²/ha);DoR (%);IVI\n';
+            
+            // Dados
+            processedData.phytosociology.forEach(row => {
+                const linha = [
+                    row.especie,
+                    row.n,
+                    row.da.toFixed(2).replace('.', ','),
+                    row.dr.toFixed(2).replace('.', ','),
+                    row.fa.toFixed(2).replace('.', ','),
+                    row.fr.toFixed(2).replace('.', ','),
+                    row.doa.toFixed(2).replace('.', ','),
+                    row.dor.toFixed(2).replace('.', ','),
+                    row.ivi.toFixed(2).replace('.', ',')
+                ];
+                csv += linha.join(';') + '\n';
+            });
+            
+            // Adicionar totais se necessário
+            const totals = {
+                n: processedData.phytosociology.reduce((sum, r) => sum + r.n, 0),
+                dr: processedData.phytosociology.reduce((sum, r) => sum + r.dr, 0),
+                fr: processedData.phytosociology.reduce((sum, r) => sum + r.fr, 0),
+                dor: processedData.phytosociology.reduce((sum, r) => sum + r.dor, 0),
+                ivi: processedData.phytosociology.reduce((sum, r) => sum + r.ivi, 0)
+            };
+            
+            csv += '\n'; // Linha em branco
+            csv += `TOTAL;${totals.n};;${totals.dr.toFixed(2).replace('.', ',')};`;
+            csv += `;${totals.fr.toFixed(2).replace('.', ',')};;${totals.dor.toFixed(2).replace('.', ',')};`;
+            csv += `${totals.ivi.toFixed(2).replace('.', ',')}\n`;
+            
+            console.log('CSV exportado (primeiras linhas):');
+            console.log(csv.split('\n').slice(0, 5).join('\n'));
+            
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            
+            // Nome do arquivo com data/hora
+            const now = new Date();
+            const dateStr = `${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getDate().toString().padStart(2,'0')}`;
+            const timeStr = `${now.getHours().toString().padStart(2,'0')}${now.getMinutes().toString().padStart(2,'0')}`;
+            link.download = `tabela_fitossociologica_${dateStr}_${timeStr}.csv`;
+            
+            link.click();
+        }
+        
+        // Função para exportar gráfico
+        function exportChart(chartId) {
+            const canvas = document.getElementById(chartId);
+            const link = document.createElement('a');
+            link.download = chartId + '.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+    </script>
+</body>
+</html>
