@@ -579,7 +579,8 @@
 
         <div id="resultsSection" class="hidden">
             <div class="tabs">
-                <button class="tab active" data-tab="summary">Resumo</button>
+                <button class="tab active" data-tab="validation">✓ Validação</button>
+                <button class="tab" data-tab="summary">Resumo</button>
                 <button class="tab" data-tab="structure">Estrutura</button>
                 <button class="tab" data-tab="phytosociology">Fitossociologia</button>
                 <button class="tab" data-tab="accumulation">Curva de Acumulação</button>
@@ -587,7 +588,152 @@
                 <button class="tab" data-tab="spatial">Padrão Espacial</button>
             </div>
 
-            <div id="summary" class="tab-content active">
+            <!-- ABA DE VALIDAÇÃO -->
+            <div id="validation" class="tab-content active">
+                <h2 class="section-title">Validação e Correção de Dados</h2>
+
+                <div style="background: rgba(255, 160, 0, 0.1); border-left: 4px solid var(--warning-color); padding: 15px 20px; border-radius: var(--border-radius); margin-bottom: 30px;">
+                    <p style="margin: 0;"><strong>⚠️ Importante:</strong> Revise os dados antes de prosseguir com as análises. Corrija nomes de espécies e verifique possíveis outliers nas medições.</p>
+                </div>
+
+                <!-- Correção Botânica -->
+                <div style="margin-bottom: 40px;">
+                    <h3 class="section-title" style="font-size: 18px;">1. Correção Botânica</h3>
+
+                    <div style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
+                        <input type="text" id="searchSpecies" placeholder="Buscar espécie..."
+                               style="flex: 1; min-width: 200px; padding: 10px; border: 2px solid var(--border-color); border-radius: 6px; font-size: 14px;">
+                        <button class="btn btn-secondary" onclick="sortSpeciesAlpha()">
+                            🔤 Ordenar A-Z
+                        </button>
+                        <button class="btn btn-secondary" onclick="sortSpeciesCount()">
+                            🔢 Ordenar por N
+                        </button>
+                    </div>
+
+                    <div class="table-container">
+                        <table id="speciesValidationTable">
+                            <thead>
+                                <tr>
+                                    <th style="width: 50px;">Sel.</th>
+                                    <th>Espécie Original</th>
+                                    <th style="width: 100px;">N° Ind.</th>
+                                    <th>Correção/Sinônimo</th>
+                                    <th style="width: 120px;">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="speciesTableBody"></tbody>
+                        </table>
+                    </div>
+
+                    <div style="margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button class="btn btn-primary" onclick="applySpeciesCorrections()">
+                            ✓ Aplicar Correções
+                        </button>
+                        <button class="btn btn-secondary" onclick="mergeSelectedSpecies()">
+                            🔀 Mesclar Selecionadas
+                        </button>
+                        <button class="btn btn-secondary" onclick="exportSpeciesList()">
+                            📥 Exportar Lista
+                        </button>
+                    </div>
+
+                    <div id="correctionStatus" style="margin-top: 15px; padding: 10px; background: rgba(76, 175, 80, 0.1); border-radius: 4px; color: var(--primary-dark); display: none;">
+                    </div>
+                </div>
+
+                <!-- Detecção de Outliers -->
+                <div style="margin-bottom: 40px;">
+                    <h3 class="section-title" style="font-size: 18px;">2. Detecção de Outliers</h3>
+
+                    <!-- Explicação sobre outliers -->
+                    <div style="background: rgba(25, 118, 210, 0.05); border-left: 4px solid var(--accent-color); padding: 15px 20px; border-radius: var(--border-radius); margin-bottom: 20px;">
+                        <h4 style="margin: 0 0 10px 0; color: var(--accent-color);">💡 O que são Outliers?</h4>
+                        <p style="margin: 5px 0; font-size: 14px;">
+                            <strong>Outliers</strong> são valores de medição que se distanciam significativamente do padrão normal dos dados.
+                            Podem indicar <strong>erros de medição</strong>, <strong>digitação incorreta</strong> ou <strong>árvores com características excepcionais</strong>.
+                        </p>
+                        <ul style="margin: 10px 0 5px 20px; font-size: 14px; line-height: 1.4;">
+                            <li><strong>IQR:</strong> Detecta valores fora do intervalo entre quartis (método conservador)</li>
+                            <li><strong>Z-Score:</strong> Detecta valores além de 3 desvios padrão da média (método mais rigoroso)</li>
+                        </ul>
+                        <p style="margin: 10px 0 0 0; font-size: 13px; color: var(--text-light);">
+                            <strong>Recomendação:</strong> Revise cada outlier individualmente - nem todos precisam ser removidos!
+                        </p>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 20px;">
+                        <div class="summary-card">
+                            <h3>Método de Detecção</h3>
+                            <select id="outlierMethod" style="width: 100%; padding: 8px; border: 2px solid var(--border-color); border-radius: 6px; margin-top: 10px;">
+                                <option value="iqr">IQR (Intervalo Interquartil) - Conservador</option>
+                                <option value="zscore">Z-Score (3 desvios padrão) - Rigoroso</option>
+                            </select>
+                        </div>
+                        <div class="summary-card">
+                            <h3>Outliers Detectados</h3>
+                            <div class="value" id="outlierCount">0</div>
+                            <small id="outlierInfo" style="font-size: 12px; color: var(--text-light); display: block; margin-top: 5px;"></small>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-secondary" onclick="detectOutliers()" style="margin-bottom: 15px;">
+                        🔍 Detectar Outliers
+                    </button>
+                    <span style="margin-left: 15px; font-size: 14px; color: var(--text-light);">
+                        Clique para analisar valores suspeitos de DAP e Altura
+                    </span>
+
+                    <div class="table-container">
+                        <table id="outliersTable">
+                            <thead>
+                                <tr>
+                                    <th style="width: 80px;">Parcela</th>
+                                    <th style="width: 90px;">ID Árvore</th>
+                                    <th>Espécie</th>
+                                    <th style="width: 90px;">CAP (cm)</th>
+                                    <th style="width: 90px;">DAP (cm)</th>
+                                    <th style="width: 90px;">Altura (m)</th>
+                                    <th style="width: 100px;">Tipo Outlier</th>
+                                    <th style="width: 180px;">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="outliersTableBody"></tbody>
+                        </table>
+                    </div>
+
+                    <!-- Explicação das ações -->
+                    <div style="margin-top: 15px; padding: 10px; background: rgba(76, 175, 80, 0.05); border-radius: 4px; font-size: 13px; color: var(--text-light);">
+                        <strong>Ações disponíveis:</strong>
+                        <span style="margin-left: 15px;">✏️ <strong>Editar:</strong> Corrigir valores de CAP/DAP ou Altura</span>
+                        <span style="margin-left: 15px;">🗑️ <strong>Remover:</strong> Excluir árvore do banco de dados</span>
+                        <br><strong>Nota:</strong> Outliers não editados nem removidos serão mantidos automaticamente nos dados finais.
+                    </div>
+                </div>
+
+                <!-- Exportar dados validados -->
+                <div style="text-align: center; padding: 20px 0; border-top: 2px solid var(--border-color); margin-top: 30px;">
+                    <h4 style="margin: 0 0 15px 0; color: var(--primary-dark);">💾 Salvar Dados Validados</h4>
+                    <button class="btn btn-secondary" onclick="exportCorrectedCSV()" style="font-size: 14px; padding: 12px 30px; margin-bottom: 20px;">
+                        📤 Exportar CSV Corrigido
+                    </button>
+                    <p style="margin: 0 0 20px 0; color: var(--text-light); font-size: 13px;">
+                        Inclui todas as correções de espécies e outliers aplicadas
+                    </p>
+                </div>
+
+                <!-- Botão para prosseguir -->
+                <div style="text-align: center; padding: 20px 0; border-top: 1px solid var(--border-color);">
+                    <button class="btn btn-primary" onclick="proceedToAnalysis()" style="font-size: 16px; padding: 15px 40px;">
+                        ✓ Dados Validados - Prosseguir para Análises
+                    </button>
+                    <p style="margin-top: 15px; color: var(--text-light); font-size: 14px;">
+                        As correções serão aplicadas automaticamente nas análises
+                    </p>
+                </div>
+            </div>
+
+            <div id="summary" class="tab-content">
                 <h2 class="section-title">Resumo dos Resultados</h2>
                 <div class="summary-grid" id="summaryGrid"></div>
                 <div class="info-box">
@@ -753,6 +899,8 @@
     <script>
         // Variáveis globais
         let data = [];
+        let originalData = [];
+        let speciesCorrections = {};
         let processedData = {};
         let plotSizeM2 = 400; // Tamanho padrão da parcela em m²
         let plotSizeConfigured = false;
@@ -787,15 +935,22 @@
         // Event listener para mudança no tamanho da parcela
         plotSizeInput.addEventListener('input', function() {
             const value = parseFloat(this.value);
-            if (value && value > 0) {
+            if (!isNaN(value) && value > 0) {
                 plotSizeM2 = value;
                 enableUpload();
-                
+
                 // Se já houver dados carregados, reprocessar
                 if (data.length > 0) {
                     processData();
                     showResults();
                 }
+            } else if (this.value === '') {
+                // Allow empty field during typing
+                return;
+            } else {
+                // Invalid input - reset to default
+                this.value = plotSizeM2;
+                alert('Por favor, insira um valor válido maior que zero');
             }
         });
         
@@ -928,20 +1083,703 @@
                 delimiter: ';',
                 skipEmptyLines: true,
                 complete: function(results) {
-                    data = results.data;
-                    updateAreaInfo(); // Atualizar info da área após carregar dados
-                    processData();
-                    showResults();
+                    try {
+                        if (!results.data || results.data.length === 0) {
+                            alert('Erro: O arquivo CSV está vazio ou tem formato inválido');
+                            return;
+                        }
+
+                        // Validate required columns
+                        const requiredColumns = ['Parcela', 'ID Árvore', 'Espécie', 'CAP'];
+                        const firstRow = results.data[0];
+                        const missingColumns = requiredColumns.filter(col => !(col in firstRow));
+
+                        if (missingColumns.length > 0) {
+                            alert(`Erro: Colunas obrigatórias não encontradas: ${missingColumns.join(', ')}`);
+                            return;
+                        }
+
+                        data = results.data;
+                        originalData = JSON.parse(JSON.stringify(results.data));
+                        speciesCorrections = {};
+                        updateAreaInfo(); // Atualizar info da área após carregar dados
+                        prepareData();
+                        showValidation();
+                    } catch (error) {
+                        alert('Erro ao processar arquivo: ' + error.message);
+                        console.error('Erro detalhado:', error);
+                    }
                 },
                 error: function(error) {
-                    alert('Erro ao ler o arquivo: ' + error.message);
+                    alert('Erro ao ler o arquivo CSV: ' + error.message);
+                    console.error('Erro de parsing:', error);
                 }
             });
         }
+
+        // Preparar dados após carregar
+        function prepareData() {
+            data = data.map(row => {
+                // Validate and parse numeric values with better error handling
+                let capValue = 0;
+                if (row['CAP']) {
+                    const capParsed = parseFloat(row['CAP'].toString().replace(',', '.'));
+                    if (!isNaN(capParsed) && capParsed > 0 && capParsed < 10000) {
+                        capValue = capParsed;
+                    }
+                }
+
+                let alturaValue = null;
+                if (row['Altura']) {
+                    const alturaParsed = parseFloat(row['Altura'].toString().replace(',', '.'));
+                    if (!isNaN(alturaParsed) && alturaParsed > 0 && alturaParsed < 200) {
+                        alturaValue = alturaParsed;
+                    }
+                }
+
+                return {
+                    parcela: row['Parcela'] || '',
+                    idArvore: row['ID Árvore'] || '',
+                    especie: row['Espécie'] || '',
+                    cap: capValue,
+                    altura: alturaValue,
+                    latitude: parseFloat(row['Latitude']?.replace(',', '.')) || null,
+                    longitude: parseFloat(row['Longitude']?.replace(',', '.')) || null,
+                    troncoMultiplo: row['Tronco Múltiplo'] === 'Sim',
+                    capsIndividuais: row['CAPs Individuais'] || ''
+                };
+            }).filter(row => {
+                // Filter out invalid rows
+                if (!row.especie || row.especie.trim() === '') {
+                    console.warn('Row removed: missing species', row);
+                    return false;
+                }
+                if (row.cap <= 0) {
+                    console.warn('Row removed: invalid CAP value', row);
+                    return false;
+                }
+                return true;
+            });
+
+            if (data.length === 0) {
+                alert('Erro: Nenhum dado válido encontrado no arquivo');
+                return;
+            }
+
+            // Calculate derived values with validation
+            data.forEach(row => {
+                if (row.cap > 0) {
+                    row.dap = row.cap / Math.PI;
+                    row.areaBasal = (Math.PI * Math.pow(row.dap, 2)) / 40000;
+                } else {
+                    row.dap = 0;
+                    row.areaBasal = 0;
+                }
+            });
+        }
+
+        // Mostrar validação
+        function showValidation() {
+            document.getElementById('noDataMessage').classList.add('hidden');
+            document.getElementById('resultsSection').classList.remove('hidden');
+
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelector('.tab[data-tab="validation"]').classList.add('active');
+
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById('validation').classList.add('active');
+
+            populateSpeciesTable();
+        }
+
+        // Preencher tabela de espécies para validação
+        function populateSpeciesTable() {
+            const speciesCount = {};
+            data.forEach(row => {
+                speciesCount[row.especie] = (speciesCount[row.especie] || 0) + 1;
+            });
+
+            const tbody = document.getElementById('speciesTableBody');
+            tbody.innerHTML = '';
+
+            Object.entries(speciesCount)
+                .sort((a, b) => b[1] - a[1])
+                .forEach(([species, count]) => {
+                    const tr = document.createElement('tr');
+                    // Escape user input to prevent XSS but maintain original functionality
+                    const escapedSpecies = species.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                    const escapedSpeciesAttr = species.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    tr.innerHTML = `
+                        <td style="text-align: center;">
+                            <input type="checkbox" class="species-checkbox" value="${escapedSpeciesAttr}"
+                                   style="width: 18px; height: 18px; cursor: pointer;">
+                        </td>
+                        <td>${escapedSpecies}</td>
+                        <td style="text-align: center;">${count}</td>
+                        <td>
+                            <input type="text"
+                                   class="species-correction"
+                                   data-original="${escapedSpeciesAttr}"
+                                   placeholder="Deixe vazio se correto"
+                                   value="${speciesCorrections[escapedSpeciesAttr] || ''}"
+                                   style="width: 100%; padding: 6px; border: 1px solid var(--border-color); border-radius: 4px;">
+                        </td>
+                        <td style="text-align: center;">
+                            <button onclick="quickCorrect('${escapedSpeciesAttr}')"
+                                    class="btn btn-secondary"
+                                    style="padding: 6px 12px; font-size: 12px;">
+                                ✓ Aplicar
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+            document.getElementById('searchSpecies').addEventListener('input', filterSpeciesTable);
+        }
+
+        // Filtrar tabela de espécies
+        function filterSpeciesTable() {
+            const searchTerm = document.getElementById('searchSpecies').value.toLowerCase();
+            const rows = document.getElementById('speciesTableBody').querySelectorAll('tr');
+
+            rows.forEach(row => {
+                const speciesName = row.cells[1].textContent.toLowerCase();
+                row.style.display = speciesName.includes(searchTerm) ? '' : 'none';
+            });
+        }
+
+        // Ordenar espécies alfabeticamente
+        function sortSpeciesAlpha() {
+            const tbody = document.getElementById('speciesTableBody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+
+            rows.sort((a, b) => {
+                return a.cells[1].textContent.localeCompare(b.cells[1].textContent);
+            });
+
+            tbody.innerHTML = '';
+            rows.forEach(row => tbody.appendChild(row));
+        }
+
+        // Ordenar espécies por quantidade
+        function sortSpeciesCount() {
+            const tbody = document.getElementById('speciesTableBody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+
+            rows.sort((a, b) => {
+                const countA = parseInt(a.cells[2].textContent);
+                const countB = parseInt(b.cells[2].textContent);
+                return countB - countA;
+            });
+
+            tbody.innerHTML = '';
+            rows.forEach(row => tbody.appendChild(row));
+        }
+
+        // Correção rápida de espécie
+        function quickCorrect(originalSpecies) {
+            const input = document.querySelector(`input.species-correction[data-original="${originalSpecies}"]`);
+            const correctedName = input.value.trim();
+
+            if (correctedName && correctedName !== originalSpecies) {
+                speciesCorrections[originalSpecies] = correctedName;
+
+                data.forEach(row => {
+                    if (row.especie === originalSpecies) {
+                        row.especie = correctedName;
+                    }
+                });
+
+                populateSpeciesTable();
+                showCorrectionStatus(`✓ "${originalSpecies}" corrigido para "${correctedName}"`);
+            }
+        }
+
+        // Aplicar todas as correções de espécies
+        function applySpeciesCorrections() {
+            const inputs = document.querySelectorAll('.species-correction');
+            let correctionCount = 0;
+
+            inputs.forEach(input => {
+                const original = input.dataset.original;
+                const corrected = input.value.trim();
+
+                if (corrected && corrected !== original) {
+                    speciesCorrections[original] = corrected;
+                    correctionCount++;
+
+                    data.forEach(row => {
+                        if (row.especie === original) {
+                            row.especie = corrected;
+                        }
+                    });
+                }
+            });
+
+            if (correctionCount > 0) {
+                populateSpeciesTable();
+                showCorrectionStatus(`✓ ${correctionCount} correção(ões) aplicada(s) com sucesso`);
+            } else {
+                showCorrectionStatus('⚠️ Nenhuma correção para aplicar', 'warning');
+            }
+        }
+
+        // Mesclar espécies selecionadas
+        function mergeSelectedSpecies() {
+            const checkboxes = document.querySelectorAll('.species-checkbox:checked');
+
+            if (checkboxes.length < 2) {
+                alert('Selecione pelo menos 2 espécies para mesclar');
+                return;
+            }
+
+            const selectedSpecies = Array.from(checkboxes).map(cb => cb.value);
+            const targetName = prompt(
+                `Mesclar ${selectedSpecies.length} espécies selecionadas.\n\n` +
+                `Espécies: ${selectedSpecies.join(', ')}\n\n` +
+                'Digite o nome correto para a espécie:',
+                selectedSpecies[0]
+            );
+
+            if (targetName && targetName.trim()) {
+                const finalName = targetName.trim();
+
+                selectedSpecies.forEach(species => {
+                    speciesCorrections[species] = finalName;
+
+                    data.forEach(row => {
+                        if (row.especie === species) {
+                            row.especie = finalName;
+                        }
+                    });
+                });
+
+                populateSpeciesTable();
+                showCorrectionStatus(`✓ ${selectedSpecies.length} espécies mescladas em "${finalName}"`);
+
+                checkboxes.forEach(cb => cb.checked = false);
+            }
+        }
+
+        // Exportar lista de espécies
+        function exportSpeciesList() {
+            const speciesCount = {};
+            data.forEach(row => {
+                speciesCount[row.especie] = (speciesCount[row.especie] || 0) + 1;
+            });
+
+            let csv = '\ufeff';
+            csv += 'Espécie;N° Indivíduos\n';
+
+            Object.entries(speciesCount)
+                .sort((a, b) => a[0].localeCompare(b[0]))
+                .forEach(([species, count]) => {
+                    csv += `${species};${count}\n`;
+                });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+
+            const now = new Date();
+            const dateStr = `${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getDate().toString().padStart(2,'0')}`;
+            link.download = `lista_especies_${dateStr}.csv`;
+            link.click();
+        }
+
+        // Exportar CSV corrigido
+        function exportCorrectedCSV() {
+            if (!data || data.length === 0) {
+                alert('Não há dados para exportar');
+                return;
+            }
+
+            let csv = '\ufeff'; // BOM para UTF-8
+
+            // Cabeçalho baseado na estrutura original
+            csv += 'Parcela;ID Árvore;Espécie;CAP;Altura;Latitude;Longitude;Tronco Múltiplo;CAPs Individuais\n';
+
+            // Dados corrigidos
+            data.forEach(row => {
+                const linha = [
+                    row.parcela || '',
+                    row.idArvore || '',
+                    row.especie || '',
+                    row.cap ? row.cap.toFixed(1).replace('.', ',') : '',
+                    row.altura ? row.altura.toFixed(1).replace('.', ',') : '',
+                    row.latitude ? row.latitude.toFixed(6).replace('.', ',') : '',
+                    row.longitude ? row.longitude.toFixed(6).replace('.', ',') : '',
+                    row.troncoMultiplo ? 'Sim' : 'Não',
+                    row.capsIndividuais || ''
+                ];
+
+                // Escape aspas duplas e envolver campos que contêm ponto e vírgula
+                const linhaEscapada = linha.map(campo => {
+                    const campoStr = campo.toString();
+                    if (campoStr.includes(';') || campoStr.includes('"') || campoStr.includes('\n')) {
+                        return '"' + campoStr.replace(/"/g, '""') + '"';
+                    }
+                    return campoStr;
+                });
+
+                csv += linhaEscapada.join(';') + '\n';
+            });
+
+            // Adicionar informações sobre as correções feitas
+            let hasCorrections = false;
+
+            if (Object.keys(speciesCorrections).length > 0) {
+                csv += '\n\n;CORREÇÕES DE ESPÉCIES APLICADAS:\n';
+                Object.entries(speciesCorrections).forEach(([original, corrected]) => {
+                    csv += `;${original} → ${corrected}\n`;
+                });
+                hasCorrections = true;
+            }
+
+            // Contar outliers que foram editados ou removidos
+            const originalDataLength = originalData.length;
+            const currentDataLength = data.length;
+            const removedOutliers = originalDataLength - currentDataLength;
+
+            // Contar registros editados (comparando com dados originais)
+            let editedRecords = 0;
+            if (originalData && originalData.length > 0) {
+                data.forEach((currentRow, index) => {
+                    if (originalData[index]) {
+                        const origCAP = parseFloat(originalData[index]['CAP']?.replace(',', '.')) || 0;
+                        const origAltura = parseFloat(originalData[index]['Altura']?.replace(',', '.')) || null;
+
+                        if (Math.abs(currentRow.cap - origCAP) > 0.1 ||
+                            (origAltura && currentRow.altura && Math.abs(currentRow.altura - origAltura) > 0.1)) {
+                            editedRecords++;
+                        }
+                    }
+                });
+            }
+
+            if (removedOutliers > 0 || editedRecords > 0) {
+                if (hasCorrections) csv += '\n';
+                csv += ';CORREÇÕES DE OUTLIERS:\n';
+                if (removedOutliers > 0) {
+                    csv += `;Árvores removidas: ${removedOutliers}\n`;
+                }
+                if (editedRecords > 0) {
+                    csv += `;Registros editados: ${editedRecords}\n`;
+                }
+                hasCorrections = true;
+            }
+
+            if (hasCorrections) {
+                csv += `\n;Total de registros finais: ${data.length}\n`;
+                csv += `;Data da validação: ${new Date().toLocaleString('pt-BR')}\n`;
+            }
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+
+            const now = new Date();
+            const dateStr = `${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getDate().toString().padStart(2,'0')}`;
+            const timeStr = `${now.getHours().toString().padStart(2,'0')}${now.getMinutes().toString().padStart(2,'0')}`;
+            link.download = `dados_florestais_corrigidos_${dateStr}_${timeStr}.csv`;
+
+            link.click();
+
+            showCorrectionStatus(`✓ CSV corrigido exportado com ${data.length} registros`);
+        }
+
+        // Mostrar status de correção
+        function showCorrectionStatus(message, type = 'success') {
+            const statusDiv = document.getElementById('correctionStatus');
+            statusDiv.style.display = 'block';
+            statusDiv.style.background = type === 'success' ?
+                'rgba(76, 175, 80, 0.1)' :
+                'rgba(255, 160, 0, 0.1)';
+            statusDiv.style.borderLeft = type === 'success' ?
+                '4px solid var(--primary-color)' :
+                '4px solid var(--warning-color)';
+            statusDiv.textContent = message;
+
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        // Detectar outliers
+        function detectOutliers() {
+            const method = document.getElementById('outlierMethod').value;
+            const tbody = document.getElementById('outliersTableBody');
+            tbody.innerHTML = '';
+
+            const outliers = [];
+
+            const dapValues = data.map(d => d.dap).filter(v => v > 0);
+            const dapOutliers = method === 'iqr' ?
+                detectOutliersIQR(dapValues) :
+                detectOutliersZScore(dapValues);
+
+            const alturaValues = data.map(d => d.altura).filter(v => v && v > 0);
+            const alturaOutliers = alturaValues.length > 0 ?
+                (method === 'iqr' ? detectOutliersIQR(alturaValues) : detectOutliersZScore(alturaValues)) :
+                { lower: null, upper: null };
+
+            data.forEach((row, index) => {
+                let isOutlier = false;
+                let outlierType = [];
+
+                if (row.dap < dapOutliers.lower || row.dap > dapOutliers.upper) {
+                    isOutlier = true;
+                    outlierType.push('DAP');
+                }
+
+                if (row.altura && alturaOutliers.lower !== null &&
+                    (row.altura < alturaOutliers.lower || row.altura > alturaOutliers.upper)) {
+                    isOutlier = true;
+                    outlierType.push('Altura');
+                }
+
+                if (isOutlier) {
+                    outliers.push({
+                        index: index,
+                        row: row,
+                        type: outlierType.join(', ')
+                    });
+                }
+            });
+
+            document.getElementById('outlierCount').textContent = outliers.length;
+
+            // Atualizar informações adicionais
+            const outlierInfo = document.getElementById('outlierInfo');
+            if (outliers.length === 0) {
+                outlierInfo.textContent = 'Todos os valores estão dentro do padrão normal';
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 30px; color: var(--text-light);">✓ Nenhum outlier detectado - dados estão consistentes</td></tr>';
+            } else {
+                const dapOutliers = outliers.filter(o => o.type.includes('DAP')).length;
+                const alturaOutliers = outliers.filter(o => o.type.includes('Altura')).length;
+                outlierInfo.innerHTML = `${dapOutliers} outliers de DAP, ${alturaOutliers} outliers de altura`;
+
+                tbody.innerHTML = ''; // Limpar antes de adicionar novos outliers
+                outliers.forEach(outlier => {
+                    const row = outlier.row;
+                    const tr = document.createElement('tr');
+                    tr.style.background = 'rgba(255, 160, 0, 0.1)';
+                    // Escape user input to prevent XSS
+                    const escapedParcela = (row.parcela || '').toString().replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    const escapedEspecie = (row.especie || '').toString().replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    tr.innerHTML = `
+                        <td>${escapedParcela}</td>
+                        <td>${row.idArvore}</td>
+                        <td>${escapedEspecie}</td>
+                        <td>${row.cap.toFixed(1)}</td>
+                        <td style="font-weight: ${outlier.type.includes('DAP') ? 'bold' : 'normal'}; color: ${outlier.type.includes('DAP') ? 'var(--warning-color)' : 'inherit'};">
+                            ${row.dap.toFixed(1)}
+                        </td>
+                        <td style="font-weight: ${outlier.type.includes('Altura') ? 'bold' : 'normal'}; color: ${outlier.type.includes('Altura') ? 'var(--warning-color)' : 'inherit'};">
+                            ${row.altura ? row.altura.toFixed(1) : '-'}
+                        </td>
+                        <td><strong style="color: var(--warning-color);">${outlier.type}</strong></td>
+                        <td style="text-align: center;">
+                            <button onclick="editOutlierValues(${outlier.index})" class="btn btn-secondary"
+                                    style="padding: 6px 12px; font-size: 12px; margin-right: 8px;"
+                                    title="Corrigir valores de medição">
+                                ✏️ Editar
+                            </button>
+                            <button onclick="removeOutlier(${outlier.index})" class="btn btn-secondary"
+                                    style="padding: 6px 12px; font-size: 12px; background: var(--error-color);"
+                                    title="Remover árvore do banco de dados">
+                                🗑️ Remover
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+        }
+
+        // Detectar outliers usando IQR
+        function detectOutliersIQR(values) {
+            const sorted = [...values].sort((a, b) => a - b);
+            const q1Index = Math.floor(sorted.length * 0.25);
+            const q3Index = Math.floor(sorted.length * 0.75);
+
+            const q1 = sorted[q1Index];
+            const q3 = sorted[q3Index];
+            const iqr = q3 - q1;
+
+            return {
+                lower: q1 - 1.5 * iqr,
+                upper: q3 + 1.5 * iqr
+            };
+        }
+
+        // Detectar outliers usando Z-Score
+        function detectOutliersZScore(values) {
+            const mean = values.reduce((a, b) => a + b, 0) / values.length;
+            const std = Math.sqrt(values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / values.length);
+
+            return {
+                lower: mean - 3 * std,
+                upper: mean + 3 * std
+            };
+        }
+
+        // Nova função para editar valores de outlier com mais opções
+        function editOutlierValues(index) {
+            const row = data[index];
+
+            // Interface mais amigável para edição
+            const editModal = `
+                <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); max-width: 500px; margin: 20px auto;">
+                    <h3 style="margin-top: 0; color: var(--primary-color);">✏️ Editar Valores - Outlier</h3>
+
+                    <div style="background: var(--background-color); padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+                        <strong>Árvore:</strong> ${row.parcela} - ID ${row.idArvore}<br>
+                        <strong>Espécie:</strong> ${row.especie}
+                    </div>
+
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">CAP (cm):</label>
+                        <input type="number" id="editCAP" value="${row.cap.toFixed(1)}"
+                               style="width: 100%; padding: 8px; border: 2px solid var(--border-color); border-radius: 4px;"
+                               min="0" step="0.1">
+                        <small style="color: var(--text-light);">DAP será calculado automaticamente (DAP = CAP ÷ π)</small>
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Altura (m):</label>
+                        <input type="number" id="editAltura" value="${row.altura ? row.altura.toFixed(1) : ''}"
+                               style="width: 100%; padding: 8px; border: 2px solid var(--border-color); border-radius: 4px;"
+                               min="0" step="0.1" placeholder="Deixe vazio se não medido">
+                    </div>
+
+                    <div style="text-align: right;">
+                        <button onclick="cancelEdit()" style="padding: 8px 16px; margin-right: 10px; background: var(--border-color); border: none; border-radius: 4px; cursor: pointer;">
+                            Cancelar
+                        </button>
+                        <button onclick="saveEdit(${index})" style="padding: 8px 16px; background: var(--primary-color); color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            ✓ Salvar
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            // Criar overlay modal
+            const overlay = document.createElement('div');
+            overlay.id = 'editOverlay';
+            overlay.style.cssText = `
+                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0,0,0,0.5); z-index: 1000;
+                display: flex; align-items: center; justify-content: center;
+            `;
+            overlay.innerHTML = editModal;
+            document.body.appendChild(overlay);
+        }
+
+        // Salvar edição
+        function saveEdit(index) {
+            const capInput = document.getElementById('editCAP');
+            const alturaInput = document.getElementById('editAltura');
+
+            const newCAP = parseFloat(capInput.value);
+            const newAltura = alturaInput.value ? parseFloat(alturaInput.value) : null;
+
+            if (newCAP && newCAP > 0) {
+                data[index].cap = newCAP;
+                data[index].dap = newCAP / Math.PI;
+                data[index].areaBasal = (Math.PI * Math.pow(data[index].dap, 2)) / 40000;
+
+                if (newAltura && newAltura > 0) {
+                    data[index].altura = newAltura;
+                } else if (alturaInput.value === '') {
+                    data[index].altura = null;
+                }
+
+                cancelEdit();
+                detectOutliers();
+                showCorrectionStatus('✓ Valores editados com sucesso');
+            } else {
+                alert('Por favor, insira um valor válido para CAP');
+            }
+        }
+
+        // Cancelar edição
+        function cancelEdit() {
+            const overlay = document.getElementById('editOverlay');
+            if (overlay) {
+                overlay.remove();
+            }
+        }
+
+
+        // Remover outlier
+        function removeOutlier(index) {
+            const row = data[index];
+            if (confirm(
+                `Remover registro?\n\n` +
+                `Parcela: ${row.parcela}\n` +
+                `ID Árvore: ${row.idArvore}\n` +
+                `Espécie: ${row.especie}\n` +
+                `DAP: ${row.dap.toFixed(1)} cm`
+            )) {
+                data.splice(index, 1);
+                detectOutliers();
+                showCorrectionStatus('✓ Registro removido');
+            }
+        }
+
+        // Prosseguir para análises
+        function proceedToAnalysis() {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelector('.tab[data-tab="summary"]').classList.add('active');
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.getElementById('summary').classList.add('active');
+
+            // Não reprocessar os dados, apenas calcular novamente com os dados corrigidos
+            calculateAnalysis();
+            showResults();
+        }
+
+        // Função separada para calcular apenas as análises sem reprocessar dados
+        function calculateAnalysis() {
+            // Recalcular valores derivados se necessário
+            data.forEach(row => {
+                if (row.cap > 0) {
+                    row.dap = row.cap / Math.PI;
+                    row.areaBasal = (Math.PI * Math.pow(row.dap, 2)) / 40000;
+                }
+            });
+
+            // Log para debug
+            console.log('Dados após validação:', data.length, 'árvores');
+            const parcelas = [...new Set(data.map(d => d.parcela))];
+            console.log('Parcelas:', parcelas.length);
+            const areaBasalTotal = data.reduce((sum, d) => sum + d.areaBasal, 0);
+            console.log('Área basal total:', areaBasalTotal.toFixed(4), 'm²');
+            const areaTotalHa = (parcelas.length * plotSizeM2) / 10000;
+            console.log('Área total:', areaTotalHa.toFixed(2), 'ha');
+            console.log('Área basal/ha:', (areaBasalTotal/areaTotalHa).toFixed(2), 'm²/ha');
+
+            // Processar dados fitossociológicos
+            calculatePhytosociology();
+            calculateDiversity();
+            calculateAccumulationCurve();
+            calculateSpatialPattern();
+        }
         
-        // Processar dados
+        // Processar dados (apenas quando necessário - evita sobrescrever dados validados)
         function processData() {
-            // Limpar e preparar dados
+            // Se os dados já foram processados e validados, use calculateAnalysis() ao invés desta função
+            if (data.length > 0 && data[0].hasOwnProperty('dap')) {
+                // Dados já foram processados, apenas recalcular análises
+                calculateAnalysis();
+                return;
+            }
+
+            // Limpar e preparar dados (primeira vez)
             data = data.map(row => ({
                 parcela: row['Parcela'],
                 idArvore: row['ID Árvore'],
@@ -953,7 +1791,7 @@
                 troncoMultiplo: row['Tronco Múltiplo'] === 'Sim',
                 capsIndividuais: row['CAPs Individuais'] || ''
             })).filter(row => row.especie && row.cap > 0);
-            
+
             // Calcular DAP a partir do CAP e área basal
             data.forEach(row => {
                 // Para troncos múltiplos, o CAP já vem calculado como equivalente
@@ -962,7 +1800,7 @@
                 // DAP em cm, resultado em m²
                 row.areaBasal = (Math.PI * Math.pow(row.dap, 2)) / 40000; // em m²
             });
-            
+
             // Log para debug
             console.log('Dados processados:', data.length, 'árvores');
             const parcelas = [...new Set(data.map(d => d.parcela))];
@@ -972,7 +1810,7 @@
             const areaTotalHa = (parcelas.length * plotSizeM2) / 10000;
             console.log('Área total:', areaTotalHa.toFixed(2), 'ha');
             console.log('Área basal/ha:', (areaBasalTotal/areaTotalHa).toFixed(2), 'm²/ha');
-            
+
             // Processar dados fitossociológicos
             calculatePhytosociology();
             calculateDiversity();
