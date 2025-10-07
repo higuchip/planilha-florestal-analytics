@@ -1046,7 +1046,7 @@
             const areaInfoContent = document.getElementById('areaInfoContent');
             
             if (data.length > 0) {
-                const parcelas = [...new Set(data.map(d => d.parcela))];
+                const parcelas = [...new Set(data.map(d => d.parcela).filter(p => p && p.toString().trim() !== ''))];
                 const nParcelas = parcelas.length;
                 const areaTotalM2 = nParcelas * plotSizeM2;
                 const areaTotalHa = areaTotalM2 / 10000;
@@ -1102,8 +1102,8 @@
                         data = results.data;
                         originalData = JSON.parse(JSON.stringify(results.data));
                         speciesCorrections = {};
-                        updateAreaInfo(); // Atualizar info da área após carregar dados
                         prepareData();
+                        updateAreaInfo(); // Atualizar info da área após preparar dados
                         showValidation();
                     } catch (error) {
                         alert('Erro ao processar arquivo: ' + error.message);
@@ -1138,7 +1138,7 @@
                 }
 
                 return {
-                    parcela: row['Parcela'] || '',
+                    parcela: (row['Parcela'] || '').toString().trim(),
                     idArvore: row['ID Árvore'] || '',
                     especie: row['Espécie'] || '',
                     cap: capValue,
@@ -1150,6 +1150,10 @@
                 };
             }).filter(row => {
                 // Filter out invalid rows
+                if (!row.parcela || row.parcela === '') {
+                    console.warn('Row removed: missing parcela', row);
+                    return false;
+                }
                 if (!row.especie || row.especie.trim() === '') {
                     console.warn('Row removed: missing species', row);
                     return false;
@@ -1755,7 +1759,7 @@
 
             // Log para debug
             console.log('Dados após validação:', data.length, 'árvores');
-            const parcelas = [...new Set(data.map(d => d.parcela))];
+            const parcelas = [...new Set(data.map(d => d.parcela).filter(p => p && p.toString().trim() !== ''))];
             console.log('Parcelas:', parcelas.length);
             const areaBasalTotal = data.reduce((sum, d) => sum + d.areaBasal, 0);
             console.log('Área basal total:', areaBasalTotal.toFixed(4), 'm²');
@@ -1803,7 +1807,7 @@
 
             // Log para debug
             console.log('Dados processados:', data.length, 'árvores');
-            const parcelas = [...new Set(data.map(d => d.parcela))];
+            const parcelas = [...new Set(data.map(d => d.parcela).filter(p => p && p.toString().trim() !== ''))];
             console.log('Parcelas:', parcelas.length);
             const areaBasalTotal = data.reduce((sum, d) => sum + d.areaBasal, 0);
             console.log('Área basal total:', areaBasalTotal.toFixed(4), 'm²');
@@ -1822,7 +1826,7 @@
         function calculatePhytosociology() {
             const species = {};
             const totalIndividuals = data.length;
-            const parcelas = [...new Set(data.map(d => d.parcela))];
+            const parcelas = [...new Set(data.map(d => d.parcela).filter(p => p && p.toString().trim() !== ''))];
             const totalParcelas = parcelas.length;
             const totalBasalArea = data.reduce((sum, d) => sum + d.areaBasal, 0);
             
@@ -1925,7 +1929,7 @@
         // Calcular curva de acumulação com aleatorização
         function calculateAccumulationCurve() {
             const iterations = 100; // Número de iterações para aleatorização
-            const parcelas = [...new Set(data.map(d => d.parcela))].sort();
+            const parcelas = [...new Set(data.map(d => d.parcela).filter(p => p && p.toString().trim() !== ''))].sort();
             const nParcelas = parcelas.length;
             
             // Criar matriz de presença/ausência (parcelas x espécies)
@@ -2001,7 +2005,7 @@
         
         // Calcular estimadores de riqueza (Chao, Jackknife, Bootstrap)
         function calculateRichnessEstimators() {
-            const parcelas = [...new Set(data.map(d => d.parcela))];
+            const parcelas = [...new Set(data.map(d => d.parcela).filter(p => p && p.toString().trim() !== ''))];
             const especies = [...new Set(data.map(d => d.especie))];
             const N = parcelas.length; // Número de parcelas
             const S0 = especies.length; // Riqueza observada
@@ -2064,8 +2068,8 @@
                 .sort((a, b) => b[1] - a[1])
                 .slice(0, 5)
                 .map(([species]) => species);
-            
-            const parcelas = [...new Set(data.map(d => d.parcela))];
+
+            const parcelas = [...new Set(data.map(d => d.parcela).filter(p => p && p.toString().trim() !== ''))];
             const nplots = parcelas.length;
             
             processedData.morisita = topSpecies.map(species => {
@@ -2461,8 +2465,8 @@
         function updateSummary() {
             const summaryGrid = document.getElementById('summaryGrid');
             const projectInfo = document.getElementById('projectInfo');
-            
-            const parcelas = [...new Set(data.map(d => d.parcela))];
+
+            const parcelas = [...new Set(data.map(d => d.parcela).filter(p => p && p.toString().trim() !== ''))];
             const species = [...new Set(data.map(d => d.especie))];
             const totalBasalArea = data.reduce((sum, d) => sum + d.areaBasal, 0);
             
