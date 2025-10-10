@@ -586,6 +586,7 @@
                 <button class="tab" data-tab="accumulation">Curva de Acumulação</button>
                 <button class="tab" data-tab="diversity">Diversidade</button>
                 <button class="tab" data-tab="spatial">Padrão Espacial</button>
+                <button class="tab" data-tab="biomass">Biomassa</button>
             </div>
 
             <!-- ABA DE VALIDAÇÃO -->
@@ -853,6 +854,76 @@
                     <button class="btn btn-primary" onclick="exportChart('spatialChart')">
                         📥 Exportar Gráfico
                     </button>
+                </div>
+            </div>
+
+            <!-- ABA DE BIOMASSA -->
+            <div id="biomass" class="tab-content">
+                <h2 class="section-title">Estimativa de Biomassa</h2>
+
+                <div style="background: rgba(25, 118, 210, 0.05); border-left: 4px solid var(--accent-color); padding: 15px 20px; border-radius: var(--border-radius); margin-bottom: 30px;">
+                    <p style="margin: 0;"><strong>ℹ️ Informação:</strong> Selecione um modelo alométrico para calcular a biomassa aérea (AGB) das árvores. Certifique-se que o conjunto de dados possui as variáveis necessárias.</p>
+                </div>
+
+                <!-- Seleção do Modelo -->
+                <div style="margin-bottom: 30px;">
+                    <h3 class="section-title" style="font-size: 18px;">1. Seleção do Modelo Alométrico</h3>
+
+                    <div style="margin-bottom: 20px;">
+                        <label for="modelSelection" style="display: block; margin-bottom: 8px; font-weight: 500;">Modelo:</label>
+                        <select id="modelSelection" style="width: 100%; max-width: 600px; padding: 10px; border: 2px solid var(--border-color); border-radius: 6px; font-size: 14px;">
+                            <option value="none">Selecione um modelo...</option>
+                            <option value="pantropicalModel">Modelo Pantropical (Chave et al., 2014)</option>
+                            <option value="chambers2001">Modelo Chambers et al. (2001) - Amazônia Central</option>
+                            <option value="ziemmer2016">Modelo Ziemmer et al. (2016) - Xaxins</option>
+                            <option value="trautenmuller2021">Modelo Trautenmüller et al. (2021) - FOM</option>
+                        </select>
+                    </div>
+
+                    <div id="modelDescription" style="background: rgba(76, 175, 80, 0.05); padding: 20px; border-radius: var(--border-radius); border: 1px solid var(--border-color); margin-top: 15px; line-height: 1.8;">
+                        Selecione um modelo para ver sua descrição.
+                    </div>
+
+                    <!-- Opção para lidar com árvores sem altura -->
+                    <div id="heightMissingOptions" style="display: none; margin-top: 20px; padding: 15px; background: rgba(255, 160, 0, 0.05); border: 1px solid var(--warning-color); border-radius: var(--border-radius);">
+                        <h4 style="margin: 0 0 10px 0; color: var(--warning-color);">⚠️ Tratamento de Árvores sem Altura</h4>
+                        <p style="margin: 0 0 10px 0; font-size: 13px; color: var(--text-color);">
+                            O modelo selecionado requer altura, mas algumas árvores não possuem essa medição.
+                        </p>
+                        <label style="display: block; margin-bottom: 8px; font-weight: 500;">Como proceder?</label>
+                        <select id="missingHeightStrategy" style="width: 100%; padding: 8px; border: 2px solid var(--border-color); border-radius: 6px; font-size: 14px;">
+                            <option value="exclude">Excluir árvores sem altura do cálculo</option>
+                            <option value="useMean">Usar altura média das árvores com altura medida</option>
+                        </select>
+                        <p style="margin: 10px 0 0 0; font-size: 12px; color: var(--text-light);">
+                            <strong>Recomendação:</strong> Excluir é mais conservador. Usar média é aceitável quando há poucas árvores sem altura e a floresta é homogênea.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Cálculo e Resultados -->
+                <div style="margin-bottom: 30px;">
+                    <h3 class="section-title" style="font-size: 18px;">2. Cálculo da Biomassa</h3>
+
+                    <button class="btn btn-primary" id="executeBiomass" onclick="executeBiomassCalculation()">
+                        🧮 Calcular Biomassa
+                    </button>
+
+                    <div id="biomassResults" style="display: none; margin-top: 20px;">
+                        <div class="summary-card" style="background: linear-gradient(135deg, rgba(76, 175, 80, 0.1) 0%, rgba(76, 175, 80, 0.05) 100%);">
+                            <h3 style="color: var(--primary-color); margin-bottom: 15px;">📊 Relatório de Biomassa</h3>
+                            <div id="biomassReport" style="font-size: 16px; line-height: 1.8;"></div>
+                        </div>
+
+                        <div style="margin-top: 20px; text-align: center;">
+                            <button class="btn btn-primary" onclick="exportBiomassData()" style="font-size: 16px; padding: 12px 30px;">
+                                📥 Baixar CSV com Dados de Biomassa
+                            </button>
+                            <p style="margin-top: 10px; font-size: 13px; color: var(--text-light);">
+                                O arquivo incluirá todas as árvores com seus valores de biomassa calculados
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -2954,6 +3025,577 @@
             link.download = chartId + '.png';
             link.href = canvas.toDataURL();
             link.click();
+        }
+
+        // ========== FUNCIONALIDADES DE BIOMASSA ==========
+
+        const modelos = {
+            none: {
+                description: "Selecione um modelo para ver sua descrição.",
+                formula: null,
+                report: () => "",
+                outputColumnName: null,
+            },
+            pantropicalModel: {
+                description: "Modelo Pantropical de Chave et al. (2014).",
+                parametrization: "Florestas Pantropicais",
+                requiredVariables: ["WD", "H", "DAP"],
+                requiredVariablesInfo: {
+                    WD: "densidade da madeira em g.cm-3",
+                    H: "altura total da árvore em m",
+                    DAP: "DAP em cm",
+                },
+                reference: "Chave, J., Réjou‐Méchain, M., Búrquez, A., Chidumayo, E., Colgan, M. S., Delitti, W. B., ... & Vieilledent, G. (2014). Improved allometric models to estimate the aboveground biomass of tropical trees. Global change biology, 20(10), 3177-3190.",
+                formula: calculatePantropicalBiomass,
+                report: (totalBiomass) => `Total de Biomassa pelo Modelo Pantropical: ${totalBiomass.toFixed(2)} toneladas`,
+                outputColumnName: "AGB",
+            },
+            chambers2001: {
+                description: "Modelo de Chambers et al. (2001), para Amazônia Central.",
+                parametrization: "Amazônia Central - Terra-Firme",
+                requiredVariables: ["DAP"],
+                requiredVariablesInfo: {
+                    DAP: "DAP em cm",
+                },
+                reference: "Chambers, J. Q., dos Santos, J., Ribeiro, R. J., & Higuchi, N. (2001). Tree damage, allometric relationships, and above-ground net primary production in central Amazon forest. Forest ecology and management, 152(1-3), 73-84.",
+                formula: calculatechambers2001Biomass,
+                report: (totalBiomass) => `Total de Biomassa pelo Modelo de Chambers et al. (2001): ${totalBiomass.toFixed(2)} toneladas`,
+                outputColumnName: "AGB",
+            },
+            ziemmer2016: {
+                description: "Biomassa de Xaxins (Dicksonia sellowiana e Cyathea corcovadensis) de Ziemmer et al. (2001)",
+                parametrization: "Xaxim (Dicksonia sellowiana e Cyathea corcovadensis), FOM no Paraná",
+                requiredVariables: ["H", "DAP"],
+                requiredVariablesInfo: {
+                    H: "altura total da árvore em m",
+                    DAP: "DAP em cm",
+                },
+                reference: "Ziemmer, J. K., Behling, A., & Dalla Corte, A. P. (2016). Quantificação da biomassa e dos teores de carbono de pteridófitas arborescentes em floresta ombrófila mista. biofix Scientific Journal, 1(1).",
+                formula: calculateziemmer2016Biomass,
+                report: (totalBiomass) => `Total de Biomassa Seca pelo Modelo de Ziemmer et al (2016): ${totalBiomass.toFixed(2)} toneladas`,
+                outputColumnName: "AGB",
+            },
+            trautenmuller2021: {
+                description: "Modelo (28) ajustado por Trautenmuller et al. (2021), pelo procedimento simultâneo ponderado, para biomassa acima do solo em Floresta Ombrófila Mista, considerando diferentes componentes (Troncos, Galhos, Folhas e Total)",
+                parametrization: "FOM no Paraná e Rio Grande do Sul",
+                requiredVariables: ["H", "DAP"],
+                requiredVariablesInfo: {
+                    H: "altura total da árvore em m",
+                    DAP: "DAP em cm",
+                },
+                reference: "Trautenmüller, J. W., Netto, S. P., Balbinot, R., Watzlawick, L. F., Dalla Corte, A. P., Sanquetta, C. R., & Behling, A. (2021). Regression estimators for aboveground biomass and its constituent parts of trees in native southern Brazilian forests. Ecological Indicators, 130, 108025.",
+                formula: calculatetrautenmuller2021Biomass,
+                report: (totalBiomass) => `Total de Biomassa pelo Modelo 28 de Trautenmüller et al (2021): ${totalBiomass.toFixed(2)} toneladas`,
+                outputColumnName: "AGB",
+            },
+        };
+
+        function calculatePantropicalBiomass(row) {
+            let WD = parseFloat(String(row["WD"]).replace(",", "."));
+            let H = parseFloat(String(row["H"]).replace(",", "."));
+            let DAP = parseFloat(String(row["DAP"]).replace(",", "."));
+            let result = (0.0673 * Math.pow(WD * Math.pow(DAP, 2) * H, 0.976)) / 1000;
+            return parseFloat(result.toFixed(4));
+        }
+
+        function calculatechambers2001Biomass(row) {
+            let DAP = parseFloat(String(row["DAP"]).replace(",", "."));
+            let logDAP = Math.log(DAP);
+            let result = Math.exp(-0.37 + 0.333 * logDAP + 0.933 * Math.pow(logDAP, 2) - 0.122 * Math.pow(logDAP, 3)) / 1000;
+            return parseFloat(result.toFixed(4));
+        }
+
+        function calculateziemmer2016Biomass(row) {
+            let H = parseFloat(String(row["H"]).replace(",", "."));
+            let DAP = parseFloat(String(row["DAP"]).replace(",", "."));
+            let result = Math.exp(-3.17038 + 1.462132 * Math.log(DAP) + 1.183807 * Math.log(H) - 0.00004 * (Math.pow(DAP, 2) * H)) / 1000;
+            return parseFloat(result.toFixed(4));
+        }
+
+        function calculateTrautenmullerTroncoBiomass(row) {
+            let H = parseFloat(String(row["H"]).replace(",", "."));
+            let DAP = parseFloat(String(row["DAP"]).replace(",", "."));
+            let result = (0.028726 * (Math.pow(DAP, 1.675713) * Math.pow(H, 1.165411))) / 1000;
+            return parseFloat(result.toFixed(4));
+        }
+
+        function calculateTrautenmullerGalhosBiomass(row) {
+            let H = parseFloat(String(row["H"]).replace(",", "."));
+            let DAP = parseFloat(String(row["DAP"]).replace(",", "."));
+            let result = (0.003816 * Math.pow(Math.pow(DAP, 2) * H, 1.121684)) / 1000;
+            return parseFloat(result.toFixed(4));
+        }
+
+        function calculateTrautenmullerFolhasBiomass(row) {
+            let H = parseFloat(String(row["H"]).replace(",", "."));
+            let DAP = parseFloat(String(row["DAP"]).replace(",", "."));
+            let result = (0.014257 * Math.pow(Math.pow(DAP, 2) * H, 0.671907)) / 1000;
+            return parseFloat(result.toFixed(4));
+        }
+
+        function calculatetrautenmuller2021Biomass(row) {
+            let troncoBiomass = calculateTrautenmullerTroncoBiomass(row);
+            let galhosBiomass = calculateTrautenmullerGalhosBiomass(row);
+            let folhasBiomass = calculateTrautenmullerFolhasBiomass(row);
+            let result = troncoBiomass + galhosBiomass + folhasBiomass;
+            return parseFloat(result.toFixed(4));
+        }
+
+        function updateModelDescription(selectedValue) {
+            let model = modelos[selectedValue];
+            let descriptionElement = document.getElementById("modelDescription");
+            let heightOptionsDiv = document.getElementById("heightMissingOptions");
+
+            if (selectedValue === "none") {
+                descriptionElement.textContent = model.description;
+                heightOptionsDiv.style.display = "none";
+                return;
+            }
+
+            descriptionElement.innerHTML = `
+                <strong>Descrição:</strong> ${model.description} <br>
+                <strong>Parametrização:</strong> ${model.parametrization} <br>
+                <strong>Variáveis necessárias:</strong>
+                ${Object.entries(model.requiredVariablesInfo)
+                    .map(([key, desc]) => `${key}: ${desc}`)
+                    .join("<br>")} <br>
+                <strong>Referência Bibliográfica:</strong> ${model.reference}
+            `;
+
+            // Verificar se o modelo requer altura e se há árvores sem altura
+            if (data && data.length > 0 && model.requiredVariables.includes('H')) {
+                const treesWithoutHeight = data.filter(row => !row.altura || row.altura <= 0);
+                const treesWithHeight = data.filter(row => row.altura && row.altura > 0);
+
+                if (treesWithoutHeight.length > 0 && treesWithHeight.length > 0) {
+                    heightOptionsDiv.style.display = "block";
+
+                    // Atualizar texto informativo
+                    const infoText = heightOptionsDiv.querySelector('p');
+                    infoText.innerHTML = `O modelo selecionado requer altura, mas <strong>${treesWithoutHeight.length}</strong> árvore(s) não possuem essa medição
+                        (${((treesWithoutHeight.length/data.length)*100).toFixed(1)}% do total).
+                        <strong>${treesWithHeight.length}</strong> árvore(s) possuem altura medida.`;
+                } else {
+                    heightOptionsDiv.style.display = "none";
+                }
+            } else {
+                heightOptionsDiv.style.display = "none";
+            }
+        }
+
+        // Event listener para mudança de modelo
+        document.addEventListener('DOMContentLoaded', function() {
+            const modelSelect = document.getElementById("modelSelection");
+            if (modelSelect) {
+                modelSelect.addEventListener("change", function () {
+                    updateModelDescription(this.value);
+                });
+            }
+        });
+
+        let biomassProcessedData = [];
+
+        function executeBiomassCalculation() {
+            if (!data || data.length === 0) {
+                alert("Por favor, carregue um arquivo CSV primeiro.");
+                return;
+            }
+
+            let selectedModel = modelos[document.getElementById("modelSelection").value];
+
+            if (!selectedModel.formula) {
+                alert("Por favor, selecione um modelo válido.");
+                return;
+            }
+
+            // Criar cópia dos dados para não modificar o original
+            const dataForBiomass = JSON.parse(JSON.stringify(data));
+
+            // Mapear nomes das colunas (o sistema usa 'dap' e 'altura', modelos esperam 'DAP' e 'H')
+            dataForBiomass.forEach(row => {
+                row.DAP = row.dap;
+                row.H = row.altura;
+                row.WD = 0.5; // Densidade da madeira padrão se não fornecida
+            });
+
+            // Verificar quantos registros têm altura quando necessária
+            const requiresHeight = selectedModel.requiredVariables.includes('H');
+            let validRecords = dataForBiomass;
+            let skippedRecords = 0;
+            let imputedRecords = 0;
+            let meanHeight = null;
+
+            if (requiresHeight) {
+                const recordsWithHeight = dataForBiomass.filter(row => row.H && row.H > 0);
+                const recordsWithoutHeight = dataForBiomass.filter(row => !row.H || row.H <= 0);
+                skippedRecords = recordsWithoutHeight.length;
+
+                if (recordsWithHeight.length === 0) {
+                    alert("Erro: O modelo selecionado requer dados de altura, mas nenhuma árvore possui altura medida.");
+                    return;
+                }
+
+                if (skippedRecords > 0) {
+                    // Obter estratégia escolhida pelo usuário
+                    const strategy = document.getElementById("missingHeightStrategy").value;
+
+                    if (strategy === "exclude") {
+                        // Excluir árvores sem altura
+                        validRecords = recordsWithHeight;
+                    } else if (strategy === "useMean") {
+                        // Calcular altura média
+                        meanHeight = recordsWithHeight.reduce((sum, row) => sum + row.H, 0) / recordsWithHeight.length;
+
+                        // Imputar altura média nas árvores sem altura
+                        recordsWithoutHeight.forEach(row => {
+                            row.H = meanHeight;
+                            row.heightImputed = true;
+                        });
+
+                        imputedRecords = recordsWithoutHeight.length;
+                        validRecords = dataForBiomass; // Usar todos os registros
+                        skippedRecords = 0; // Não há registros ignorados neste caso
+                    }
+                }
+            }
+
+            let totalBiomass = 0;
+            let successCount = 0;
+            let errorCount = 0;
+            biomassProcessedData = [];
+
+            validRecords.forEach((row) => {
+                try {
+                    let biomassOutput = selectedModel.formula(row);
+
+                    // Verifica se o output é um número válido
+                    if (!isNaN(biomassOutput) && biomassOutput > 0) {
+                        totalBiomass += biomassOutput;
+                        row[selectedModel.outputColumnName] = biomassOutput;
+                        successCount++;
+                    } else {
+                        row[selectedModel.outputColumnName] = null;
+                        errorCount++;
+                    }
+                } catch (error) {
+                    console.error('Erro ao calcular biomassa para linha:', row, error);
+                    row[selectedModel.outputColumnName] = null;
+                    errorCount++;
+                }
+
+                biomassProcessedData.push(row);
+            });
+
+            if (totalBiomass === 0 || isNaN(totalBiomass)) {
+                alert("Erro: Não foi possível calcular biomassa para nenhuma árvore. Verifique os dados.");
+                return;
+            }
+
+            // Calcular área total em hectares
+            const parcelas = [...new Set(data.map(d => d.parcela).filter(p => p && p.toString().trim() !== ''))];
+            const areaTotalHa = (parcelas.length * plotSizeM2) / 10000;
+
+            // Biomassa por hectare
+            const biomassPorHa = totalBiomass / areaTotalHa;
+
+            // Calcular estatísticas
+            const biomassValues = biomassProcessedData
+                .map(row => row[selectedModel.outputColumnName])
+                .filter(v => v !== null && !isNaN(v) && v > 0);
+
+            const biomassMean = biomassValues.reduce((a, b) => a + b, 0) / biomassValues.length;
+            const biomassMin = Math.min(...biomassValues);
+            const biomassMax = Math.max(...biomassValues);
+            const biomassStd = Math.sqrt(
+                biomassValues.reduce((sum, v) => sum + Math.pow(v - biomassMean, 2), 0) / biomassValues.length
+            );
+            const biomassCV = (biomassStd / biomassMean) * 100;
+
+            // Calcular biomassa por espécie
+            const biomassBySpecies = {};
+            biomassProcessedData.forEach(row => {
+                const species = row.especie;
+                const biomass = row[selectedModel.outputColumnName];
+
+                if (!biomassBySpecies[species]) {
+                    biomassBySpecies[species] = {
+                        total: 0,
+                        count: 0,
+                        values: []
+                    };
+                }
+
+                if (biomass !== null && !isNaN(biomass) && biomass > 0) {
+                    biomassBySpecies[species].total += biomass;
+                    biomassBySpecies[species].count++;
+                    biomassBySpecies[species].values.push(biomass);
+                }
+            });
+
+            // Processar estatísticas por espécie e ordenar por biomassa total
+            const speciesStats = Object.entries(biomassBySpecies)
+                .map(([species, data]) => {
+                    const mean = data.total / data.count;
+                    const std = Math.sqrt(
+                        data.values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / data.count
+                    );
+
+                    return {
+                        species: species,
+                        total: data.total,
+                        count: data.count,
+                        mean: mean,
+                        std: std,
+                        percentage: (data.total / totalBiomass) * 100,
+                        totalPerHa: data.total / areaTotalHa
+                    };
+                })
+                .sort((a, b) => b.total - a.total);
+
+            // Calcular biomassa acumulada
+            let accumulatedPercentage = 0;
+            speciesStats.forEach(sp => {
+                accumulatedPercentage += sp.percentage;
+                sp.accumulated = accumulatedPercentage;
+            });
+
+            // Identificar quantas espécies representam 80% da biomassa
+            const species80Index = speciesStats.findIndex(sp => sp.accumulated >= 80);
+            const species80Count = species80Index >= 0 ? species80Index + 1 : speciesStats.length;
+
+            // Mostrar resultados com estatísticas
+            document.getElementById("biomassReport").innerHTML = `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                    <div style="background: rgba(255,255,255,0.6); padding: 15px; border-radius: 6px;">
+                        <div style="font-size: 12px; color: var(--text-light); margin-bottom: 5px;">BIOMASSA TOTAL</div>
+                        <div style="font-size: 24px; font-weight: bold; color: var(--primary-color);">
+                            ${totalBiomass.toFixed(2)} <span style="font-size: 14px; font-weight: normal;">ton</span>
+                        </div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.6); padding: 15px; border-radius: 6px;">
+                        <div style="font-size: 12px; color: var(--text-light); margin-bottom: 5px;">BIOMASSA POR HECTARE</div>
+                        <div style="font-size: 24px; font-weight: bold; color: var(--primary-color);">
+                            ${biomassPorHa.toFixed(2)} <span style="font-size: 14px; font-weight: normal;">ton/ha</span>
+                        </div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.6); padding: 15px; border-radius: 6px;">
+                        <div style="font-size: 12px; color: var(--text-light); margin-bottom: 5px;">ÁRVORES CALCULADAS</div>
+                        <div style="font-size: 24px; font-weight: bold; color: var(--primary-color);">
+                            ${successCount} <span style="font-size: 14px; font-weight: normal;">de ${validRecords.length}</span>
+                        </div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.6); padding: 15px; border-radius: 6px;">
+                        <div style="font-size: 12px; color: var(--text-light); margin-bottom: 5px;">ESPÉCIES (80% BIOMASSA)</div>
+                        <div style="font-size: 24px; font-weight: bold; color: var(--primary-color);">
+                            ${species80Count} <span style="font-size: 14px; font-weight: normal;">de ${speciesStats.length}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="background: rgba(255,255,255,0.6); padding: 15px; border-radius: 6px; margin-top: 15px;">
+                    <h4 style="margin: 0 0 10px 0; color: var(--primary-dark);">Estatísticas de Biomassa Individual</h4>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; font-size: 14px;">
+                        <div><strong>Média:</strong> ${biomassMean.toFixed(4)} ton</div>
+                        <div><strong>Desvio padrão:</strong> ${biomassStd.toFixed(4)} ton</div>
+                        <div><strong>Mínimo:</strong> ${biomassMin.toFixed(4)} ton</div>
+                        <div><strong>Máximo:</strong> ${biomassMax.toFixed(4)} ton</div>
+                        <div><strong>CV:</strong> ${biomassCV.toFixed(1)}%</div>
+                        <div><strong>N:</strong> ${biomassValues.length}</div>
+                    </div>
+                </div>
+
+                <div style="background: rgba(255,255,255,0.6); padding: 15px; border-radius: 6px; margin-top: 15px;">
+                    <h4 style="margin: 0 0 15px 0; color: var(--primary-dark);">Biomassa por Espécie</h4>
+
+                    ${speciesStats.length > 1 ? `
+                        <p style="font-size: 13px; color: var(--text-light); margin-bottom: 15px;">
+                            <strong>Concentração:</strong> ${species80Count} espécie(s) concentram 80% da biomassa total
+                            (${((species80Count/speciesStats.length)*100).toFixed(1)}% das espécies)
+                        </p>
+                    ` : ''}
+
+                    <div style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 4px;">
+                        <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
+                            <thead style="position: sticky; top: 0; z-index: 1;">
+                                <tr style="background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary-color) 100%);">
+                                    <th style="padding: 10px 8px; text-align: left; color: white; font-weight: 500;">#</th>
+                                    <th style="padding: 10px 8px; text-align: left; color: white; font-weight: 500;">Espécie</th>
+                                    <th style="padding: 10px 8px; text-align: right; color: white; font-weight: 500;">N</th>
+                                    <th style="padding: 10px 8px; text-align: right; color: white; font-weight: 500;">Biomassa Total (ton)</th>
+                                    <th style="padding: 10px 8px; text-align: right; color: white; font-weight: 500;">Biomassa/ha</th>
+                                    <th style="padding: 10px 8px; text-align: right; color: white; font-weight: 500;">% Total</th>
+                                    <th style="padding: 10px 8px; text-align: right; color: white; font-weight: 500;">% Acum.</th>
+                                    <th style="padding: 10px 8px; text-align: right; color: white; font-weight: 500;">Média ± DP</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${speciesStats.map((sp, index) => `
+                                    <tr style="border-bottom: 1px solid var(--border-color); ${index < species80Index ? 'background: rgba(76, 175, 80, 0.05);' : ''}">
+                                        <td style="padding: 8px;">${index + 1}</td>
+                                        <td style="padding: 8px; font-weight: ${index < 3 ? 'bold' : 'normal'};">${sp.species}</td>
+                                        <td style="padding: 8px; text-align: right;">${sp.count}</td>
+                                        <td style="padding: 8px; text-align: right;">${sp.total.toFixed(3)}</td>
+                                        <td style="padding: 8px; text-align: right;">${sp.totalPerHa.toFixed(3)}</td>
+                                        <td style="padding: 8px; text-align: right; font-weight: ${sp.percentage > 20 ? 'bold' : 'normal'};">${sp.percentage.toFixed(1)}%</td>
+                                        <td style="padding: 8px; text-align: right;">${sp.accumulated.toFixed(1)}%</td>
+                                        <td style="padding: 8px; text-align: right; font-size: 11px;">${sp.mean.toFixed(4)} ± ${sp.std.toFixed(4)}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    ${speciesStats.length > 1 ? `
+                        <p style="font-size: 12px; color: var(--text-light); margin-top: 10px;">
+                            <strong>Legenda:</strong> Linhas em verde claro = espécies que compõem os primeiros 80% da biomassa
+                        </p>
+                    ` : ''}
+                </div>
+
+                ${skippedRecords > 0 ? `
+                    <div style="background: rgba(255, 160, 0, 0.1); padding: 12px; border-radius: 6px; margin-top: 15px; border-left: 3px solid var(--warning-color);">
+                        <strong>⚠️ Aviso:</strong> ${skippedRecords} árvore(s) foram ignoradas por não possuírem altura.
+                    </div>
+                ` : ''}
+
+                ${imputedRecords > 0 ? `
+                    <div style="background: rgba(25, 118, 210, 0.1); padding: 12px; border-radius: 6px; margin-top: 15px; border-left: 3px solid var(--accent-color);">
+                        <strong>ℹ️ Imputação de Dados:</strong> ${imputedRecords} árvore(s) sem altura tiveram altura média imputada (${meanHeight.toFixed(2)} m).
+                        Esta abordagem assume homogeneidade da floresta.
+                    </div>
+                ` : ''}
+
+                ${errorCount > 0 ? `
+                    <div style="background: rgba(211, 47, 47, 0.1); padding: 12px; border-radius: 6px; margin-top: 15px; border-left: 3px solid var(--error-color);">
+                        <strong>⚠️ Erro:</strong> ${errorCount} árvore(s) geraram erro no cálculo.
+                    </div>
+                ` : ''}
+
+                <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--border-color); font-size: 13px; color: var(--text-light);">
+                    <strong>Área amostrada:</strong> ${areaTotalHa.toFixed(2)} ha (${parcelas.length} parcelas × ${plotSizeM2} m²)
+                </div>
+            `;
+
+            document.getElementById("biomassResults").style.display = "block";
+        }
+
+        function exportBiomassData() {
+            if (!biomassProcessedData || biomassProcessedData.length === 0) {
+                alert("Nenhum dado para exportar.");
+                return;
+            }
+
+            const selectedModel = document.getElementById("modelSelection").value;
+            const modelInfo = modelos[selectedModel];
+
+            // Preparar dados para exportação
+            const exportData = biomassProcessedData.map(row => ({
+                'Parcela': row.parcela,
+                'ID Árvore': row.idArvore,
+                'Espécie': row.especie,
+                'CAP (cm)': row.cap ? row.cap.toFixed(1).replace('.', ',') : '',
+                'DAP (cm)': row.DAP ? row.DAP.toFixed(1).replace('.', ',') : '',
+                'Altura (m)': row.H ? row.H.toFixed(1).replace('.', ',') : '',
+                'Altura Imputada': row.heightImputed ? 'Sim' : 'Não',
+                'AGB (ton)': row[modelInfo.outputColumnName] ? row[modelInfo.outputColumnName].toFixed(4).replace('.', ',') : ''
+            }));
+
+            // Adicionar BOM UTF-8
+            let csv = '\ufeff';
+
+            // Converter para CSV usando Papa Parse
+            csv += Papa.unparse(exportData, {
+                delimiter: ";",
+            });
+
+            // Adicionar informações do modelo no final
+            const totalBiomass = biomassProcessedData
+                .map(r => r[modelInfo.outputColumnName])
+                .filter(v => v !== null && !isNaN(v))
+                .reduce((a, b) => a + b, 0);
+
+            const parcelas = [...new Set(data.map(d => d.parcela).filter(p => p && p.toString().trim() !== ''))];
+            const areaTotalHa = (parcelas.length * plotSizeM2) / 10000;
+            const biomassPorHa = totalBiomass / areaTotalHa;
+
+            // Calcular estatísticas por espécie para o CSV
+            const biomassBySpecies = {};
+            biomassProcessedData.forEach(row => {
+                const species = row.especie;
+                const biomass = row[modelInfo.outputColumnName];
+
+                if (!biomassBySpecies[species]) {
+                    biomassBySpecies[species] = {
+                        total: 0,
+                        count: 0
+                    };
+                }
+
+                if (biomass !== null && !isNaN(biomass) && biomass > 0) {
+                    biomassBySpecies[species].total += biomass;
+                    biomassBySpecies[species].count++;
+                }
+            });
+
+            const speciesStatsForExport = Object.entries(biomassBySpecies)
+                .map(([species, data]) => ({
+                    species: species,
+                    total: data.total,
+                    count: data.count,
+                    percentage: (data.total / totalBiomass) * 100,
+                    totalPerHa: data.total / areaTotalHa
+                }))
+                .sort((a, b) => b.total - a.total);
+
+            // Verificar se houve imputação ou exclusão
+            const treesWithImputedHeight = biomassProcessedData.filter(row => row.heightImputed).length;
+            const originalTreeCount = data.length;
+            const treesExcluded = originalTreeCount - biomassProcessedData.length;
+
+            csv += '\n\n;INFORMAÇÕES DO MODELO\n';
+            csv += `;Modelo: ${modelInfo.description}\n`;
+            csv += `;Parametrização: ${modelInfo.parametrization}\n`;
+            csv += `;Referência: ${modelInfo.reference}\n`;
+
+            csv += '\n;TRATAMENTO DE DADOS\n';
+            if (treesWithImputedHeight > 0) {
+                const meanH = biomassProcessedData.find(row => row.heightImputed)?.H || 0;
+                csv += `;Estratégia para árvores sem altura: Imputação com altura média\n`;
+                csv += `;Árvores com altura imputada: ${treesWithImputedHeight}\n`;
+                csv += `;Altura média utilizada: ${meanH.toFixed(2)} m\n`;
+            } else if (treesExcluded > 0) {
+                csv += `;Estratégia para árvores sem altura: Exclusão do cálculo\n`;
+                csv += `;Árvores excluídas: ${treesExcluded}\n`;
+            } else {
+                csv += `;Todas as árvores possuíam dados completos\n`;
+            }
+
+            csv += '\n;RESULTADOS GERAIS\n';
+            csv += `;Biomassa Total: ${totalBiomass.toFixed(2)} toneladas\n`;
+            csv += `;Biomassa por Hectare: ${biomassPorHa.toFixed(2)} ton/ha\n`;
+            csv += `;Área Amostrada: ${areaTotalHa.toFixed(2)} ha\n`;
+            csv += `;Número de Árvores Calculadas: ${biomassProcessedData.length}\n`;
+            csv += `;Número de Árvores Originais: ${originalTreeCount}\n`;
+            csv += `;Data do Cálculo: ${new Date().toLocaleString('pt-BR')}\n`;
+
+            // Adicionar tabela de biomassa por espécie
+            csv += '\n\n;BIOMASSA POR ESPÉCIE\n';
+            csv += ';Espécie;N;Biomassa Total (ton);Biomassa/ha (ton/ha);% do Total\n';
+            speciesStatsForExport.forEach(sp => {
+                csv += `;${sp.species};${sp.count};${sp.total.toFixed(3).replace('.', ',')};${sp.totalPerHa.toFixed(3).replace('.', ',')};${sp.percentage.toFixed(1).replace('.', ',')}%\n`;
+            });
+
+            const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const downloadBtn = document.createElement("a");
+
+            const now = new Date();
+            const dateStr = `${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getDate().toString().padStart(2,'0')}`;
+            const timeStr = `${now.getHours().toString().padStart(2,'0')}${now.getMinutes().toString().padStart(2,'0')}`;
+
+            downloadBtn.setAttribute("href", url);
+            downloadBtn.setAttribute("download", `biomassa_${selectedModel}_${dateStr}_${timeStr}.csv`);
+            downloadBtn.click();
         }
     </script>
 </body>
