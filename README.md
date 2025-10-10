@@ -17,12 +17,14 @@ Companheiro do [Planilha Florestal App](https://github.com/higuchip/inventario_a
 ## ✨ Funcionalidades
 
 ### 📈 Análises Disponíveis
+- **Validação de Dados**: Correção de nomes de espécies e detecção de outliers
 - **Parâmetros Fitossociológicos**: Densidade, Frequência, Dominância e IVI
 - **Índices de Diversidade**: Shannon, Pielou, Simpson, Riqueza
 - **Estrutura Florestal**: Histogramas de DAP e Altura com estatísticas
 - **Curva de Acumulação**: Com estimadores de riqueza (Chao, Jackknife, Bootstrap)
 - **Padrão Espacial**: Índice de Morisita para as principais espécies
-- **Exportação**: Tabelas em formato CSV
+- **Estimativa de Biomassa**: Modelos alométricos para diferentes formações florestais
+- **Exportação**: Tabelas em formato CSV e gráficos em PNG
 
 ### 🔧 Recursos Técnicos
 - **Interface Responsiva**: Funciona em desktop, tablet e mobile
@@ -48,11 +50,73 @@ Companheiro do [Planilha Florestal App](https://github.com/higuchip/inventario_a
 - **Curva de Acumulação**: Análise da suficiência amostral
 - **Diversidade**: Índices e interpretações
 - **Padrão Espacial**: Distribuição das espécies
+- **Biomassa**: Estimativas de biomassa aérea com modelos alométricos
 
 ### 4. **Exporte os Resultados**
 - Tabelas fitossociológicas em CSV
 - Gráficos em PNG
 - Dados prontos para relatórios
+
+## 📏 Estimativa de Biomassa
+
+A ferramenta oferece 4 modelos alométricos para estimativa de biomassa aérea (AGB):
+
+### Modelos Disponíveis
+
+#### 1. **Modelo Pantropical (Chave et al., 2014)**
+- **Equação**: `AGB = 0.0673 × (ρ × DAP² × H)^0.976`
+- **Variáveis**: Densidade da madeira (ρ), DAP (cm), Altura (m)
+- **Aplicação**: Florestas tropicais em geral
+- **Nota**: Usa densidade padrão de 0.5 g/cm³ quando não especificada
+
+#### 2. **Chambers et al. (2001) - Amazônia Central**
+- **Equação**: `AGB = exp(-1.754 + 2.665 × ln(DAP))`
+- **Variáveis**: DAP (cm)
+- **Aplicação**: Floresta Amazônica (Amazônia Central)
+- **Vantagem**: Não requer medição de altura
+
+#### 3. **Ziemmer et al. (2016) - Xaxins**
+- **Equação**: `AGB = 10^(-0.833 + 2.187 × log10(DAP) + 0.521 × log10(H))`
+- **Variáveis**: DAP (cm), Altura (m)
+- **Aplicação**: Fetos arborescentes (xaxins)
+- **Específico**: Cyatheaceae e Dicksoniaceae
+
+#### 4. **Trautenmüller et al. (2021) - FOM**
+- **Equação**: `AGB = exp(-2.9287 + 1.1214 × ln(DAP²×H))`
+- **Variáveis**: DAP (cm), Altura (m)
+- **Aplicação**: Floresta Ombrófila Mista (Araucária)
+- **Região**: Sul do Brasil
+
+### Tratamento de Dados Faltantes
+
+Quando o modelo requer altura mas algumas árvores não possuem esta medida:
+
+- **Se nenhuma árvore tem altura**: Cálculo não é realizado
+- **Se algumas árvores têm altura**: Duas estratégias disponíveis:
+  1. **Excluir árvores sem altura** (conservador)
+  2. **Imputar altura média** (assume homogeneidade da floresta)
+
+A estratégia utilizada é documentada no relatório e arquivo CSV exportado.
+
+### Resultados Apresentados
+
+- **Biomassa Total**: Soma de toda biomassa estimada (toneladas)
+- **Biomassa/ha**: Valores extrapolados por hectare
+- **Estatísticas Individuais**: Média, desvio padrão, CV, mín/máx por árvore
+- **Análise por Espécie**:
+  - Ranking de espécies por biomassa total
+  - Identificação das espécies que representam 80% da biomassa
+  - Estatísticas descritivas por espécie
+- **Rastreabilidade**: Indicação de árvores com altura imputada
+
+### Exportação
+
+O arquivo CSV exportado contém:
+- Dados individuais de cada árvore com biomassa estimada
+- Informações do modelo utilizado
+- Estratégia de tratamento de dados faltantes
+- Resumo estatístico geral
+- Tabela de biomassa por espécie
 
 ## 🗂️ Estrutura de Dados CSV
 
@@ -64,11 +128,13 @@ O arquivo CSV deve conter as seguintes colunas:
 | `ID Árvore` | Identificador único da árvore | 001 |
 | `Espécie` | Nome da espécie | *Araucaria angustifolia* |
 | `CAP` | Circunferência à altura do peito (cm) | 95.5 |
-| `Altura` | Altura da árvore em metros (opcional) | 15.2 |
+| `Altura` | Altura da árvore em metros (opcional*) | 15.2 |
 | `Latitude` | Coordenada GPS (opcional) | -25.12345 |
 | `Longitude` | Coordenada GPS (opcional) | -50.67890 |
 | `Tronco Múltiplo` | Sim/Não | Não |
 | `CAPs Individuais` | Lista de CAPs se tronco múltiplo | 30;25;40 |
+
+**\* Nota**: Altura é obrigatória para alguns modelos de biomassa (Pantropical, Ziemmer, Trautenmüller)
 
 ## 🔄 Integração com Planilha Florestal App
 
