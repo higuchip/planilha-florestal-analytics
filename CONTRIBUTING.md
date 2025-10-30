@@ -2,6 +2,8 @@
 
 Obrigado por considerar contribuir com o **Planilha Florestal Analytics**! Este projeto é feito pela comunidade florestal, para a comunidade florestal. 🌲
 
+Esta ferramenta complementa o [Planilha Florestal App](https://github.com/higuchip/inventario_app) (PWA para coleta de dados em campo) e oferece análises fitossociológicas completas de forma gratuita e open-source.
+
 ## 📋 Índice
 
 - [Código de Conduta](#-código-de-conduta)
@@ -135,16 +137,138 @@ git checkout -b feature/minha-feature
 # A aplicação roda completamente no client-side, sem necessidade de servidor
 ```
 
+### Estrutura do Código
+
+**Arquivo Principal:** `index.html` (aplicação single-page)
+
+**Seções Principais do Código:**
+
+```
+📦 index.html
+├── 🎨 CSS (variáveis, estilos, responsividade)
+├── 📊 HTML (estrutura, tabs, formulários)
+└── ⚙️ JavaScript
+    ├── Variáveis Globais
+    │   ├── data[] - dados processados
+    │   ├── originalData[] - dados originais
+    │   ├── speciesCorrections{} - correções aplicadas
+    │   ├── processedData{} - resultados das análises
+    │   └── plotSizeM2 - tamanho da parcela
+    │
+    ├── Configuração e Upload
+    │   ├── enableUpload() - habilita upload após config
+    │   ├── processFile() - processa CSV com Papa Parse
+    │   └── prepareData() - valida e limpa dados
+    │
+    ├── Validação (Aba 1)
+    │   ├── populateSpeciesTable() - lista espécies
+    │   ├── applySpeciesCorrections() - aplica correções
+    │   ├── mergeSelectedSpecies() - mescla espécies
+    │   ├── detectOutliers() - IQR e Z-Score
+    │   ├── editOutlierValues() - edita medições
+    │   └── exportCorrectedCSV() - exporta dados validados
+    │
+    ├── Análises Fitossociológicas
+    │   ├── calculatePhytosociology() - DA, DR, FA, FR, DoA, DoR, IVI
+    │   ├── calculateDiversity() - Shannon, Pielou, Simpson
+    │   ├── calculateAccumulationCurve() - 100 permutações
+    │   ├── calculateRichnessEstimators() - Chao, Jackknife, Bootstrap
+    │   └── calculateSpatialPattern() - Índice de Morisita
+    │
+    ├── Visualizações
+    │   ├── createStructureHistograms() - DAP e Altura
+    │   ├── createPhytoTable() - tabela fitossociológica
+    │   ├── createAccumulationChart() - Chart.js
+    │   ├── createDiversityChart() - gráfico de barras
+    │   └── createSpatialChart() - Morisita
+    │
+    ├── Biomassa
+    │   ├── modelos{} - 4 modelos alométricos
+    │   │   ├── pantropicalModel (Chave 2014)
+    │   │   ├── chambers2001 (Amazônia)
+    │   │   ├── ziemmer2016 (Xaxins)
+    │   │   └── trautenmuller2021 (FOM)
+    │   ├── executeBiomassCalculation()
+    │   └── exportBiomassData()
+    │
+    └── Exportação
+        ├── exportTableToCSV() - tabela fitossociológica
+        ├── exportChart() - gráficos em PNG
+        └── exportCorrectedCSV() - dados validados
+```
+
+**Bibliotecas Externas:**
+- `Chart.js` - Gráficos interativos
+- `Papa Parse` - Processamento CSV
+- `html2canvas` - Exportação de gráficos (planejado)
+
+**Padrões de Código:**
+- Vanilla JavaScript (sem frameworks)
+- Processamento 100% client-side
+- CSS Grid/Flexbox para layout
+- Sistema de tabs para navegação
+
+### Adicionando Novos Modelos de Biomassa
+
+Se você deseja contribuir com um novo modelo alométrico:
+
+```javascript
+// 1. Adicione o modelo ao objeto 'modelos' no código
+novoModelo: {
+    description: "Descrição do modelo",
+    parametrization: "Região/Formação florestal",
+    requiredVariables: ["DAP", "H"], // ou apenas ["DAP"]
+    requiredVariablesInfo: {
+        DAP: "DAP em cm",
+        H: "altura total da árvore em m"
+    },
+    reference: "Citação bibliográfica completa",
+    formula: calculateNovoModeloBiomass, // função de cálculo
+    report: (totalBiomass) => `Texto do relatório: ${totalBiomass.toFixed(2)} toneladas`,
+    outputColumnName: "AGB"
+}
+
+// 2. Crie a função de cálculo
+function calculateNovoModeloBiomass(row) {
+    let DAP = parseFloat(String(row["DAP"]).replace(",", "."));
+    let H = parseFloat(String(row["H"]).replace(",", "."));
+    
+    // Sua equação alométrica aqui
+    // Retornar biomassa em TONELADAS (kg/1000)
+    let result = /* sua fórmula */ / 1000;
+    
+    return parseFloat(result.toFixed(4));
+}
+
+// 3. Adicione opção no select HTML
+<option value="novoModelo">Nome do Modelo - Região</option>
+```
+
+**Checklist para novos modelos:**
+- [ ] Equação validada cientificamente
+- [ ] Referência bibliográfica completa
+- [ ] Unidades corretas (resultado em toneladas)
+- [ ] Tratamento de valores inválidos
+- [ ] Documentação da região/formação aplicável
+- [ ] Testes com dados reais
+- [ ] Exemplo no PR
+
 ### Áreas Prioritárias
 
 Contribuições são especialmente bem-vindas em:
 
-- [ ] **Validação de dados**: Melhorar detecção de erros em CSVs
-- [ ] **Novas visualizações**: Gráficos adicionais para análises
-- [ ] **Performance**: Otimizar processamento de grandes datasets
+- [ ] **Validação de dados**: Melhorar detecção de erros em CSVs e correção botânica
+- [ ] **Detecção de outliers**: Aprimorar algoritmos de detecção (IQR, Z-Score)
+- [ ] **Modelos de biomassa**: Adicionar novos modelos alométricos regionais
+- [ ] **Estimadores de riqueza**: Implementar novos estimadores (ACE, ICE)
+- [ ] **Visualizações**: Criar gráficos adicionais e mapas interativos com coordenadas GPS
+- [ ] **Análise temporal**: Comparação entre inventários de diferentes anos
+- [ ] **Performance**: Otimizar processamento de grandes datasets (>10.000 árvores)
 - [ ] **Acessibilidade**: Melhorar compatibilidade com leitores de tela
 - [ ] **Testes**: Criar suite de testes automatizados
-- [ ] **Documentação**: Expandir tutoriais e exemplos
+- [ ] **Documentação**: Expandir tutoriais e criar vídeos explicativos
+- [ ] **Exportação**: Adicionar formatos GIS (Shapefile, GeoJSON)
+- [ ] **Integração**: API Flora e Funga do Brasil para validação taxonômica
 
 ---
 
@@ -291,39 +415,85 @@ Adicione screenshots de novas features.
 
 ### Dados de Teste
 
-Use estes dados para testar:
+Use estes dados para testar (formato Planilha Florestal App):
 
 ```csv
-Parcela,ID Árvore,Espécie,CAP,Altura
-P01,001,Araucaria angustifolia,157.0,25.5
-P01,002,Ilex paraguariensis,62.8,12.3
-P01,003,Ocotea pulchella,94.2,18.7
-P02,004,Araucaria angustifolia,188.5,28.2
-P02,005,Matayba elaeagnoides,45.6,9.5
-P02,006,Cupania vernalis,51.2,11.8
+Parcela;ID Árvore;Espécie;CAP;Tronco Múltiplo;CAPs Individuais;Altura;Latitude;Longitude;Data de Registro;Observação
+1;1469;Ilex dumosa;85,8;Não;;7;-27,79615;-50,332249;25/09/2025, 08:35:33;Coletado
+1;1504;Myrcia splendens;17,7;Não;;6;-27,791664;-50,346441;25/09/2025, 08:35:33;
+1;1507;Myrsine umbellata;31,6;Não;;6;-27,791664;-50,346441;25/09/2025, 08:35:33;
+1;1509;Myrsine umbellata;15,8;Não;;5;-27,79615;-50,332249;25/09/2025, 08:35:33;
+1;1512;Myrcia palustris;26,7;Não;;7;-27,791664;-50,346441;25/09/2025, 08:35:33;
+1;1518;Myrsine umbellata;18,4;Não;;6;-27,791664;-50,346441;25/09/2025, 08:35:33;
+2;1520;Araucaria angustifolia;157,0;Não;;25,5;-27,79615;-50,332249;25/09/2025, 09:12:15;
+2;1521;Ocotea pulchella;94,2;Não;;18,7;-27,791664;-50,346441;25/09/2025, 09:15:22;
 ```
+
+**Observações importantes:**
+- Separador: ponto-e-vírgula (;)
+- Decimal: vírgula (,)
+- Codificação: UTF-8 com BOM
 
 ### Cenários de Teste
 
-- [ ] Importação de CSV válido
+**Configuração e Import:**
+- [ ] Configuração de tamanho de parcela (100, 400, 500, 600, 1000 m²)
+- [ ] Importação de CSV válido (formato Planilha Florestal App)
 - [ ] CSV com erros (colunas faltando, valores inválidos)
-- [ ] Diferentes tamanhos de parcela
+- [ ] Diferentes separadores (ponto-e-vírgula vs vírgula)
+- [ ] Diferentes decimais (vírgula vs ponto)
+
+**Validação de Dados:**
+- [ ] Correção de nomes de espécies
+- [ ] Mesclagem de espécies duplicadas
+- [ ] Detecção de outliers (IQR e Z-Score)
+- [ ] Edição de valores de outliers (CAP, Altura)
+- [ ] Remoção de outliers
+- [ ] Exportação de CSV corrigido
+
+**Análises Estruturais:**
+- [ ] Histogramas de DAP com regra de Sturges
+- [ ] Histogramas de Altura (quando disponível)
 - [ ] Datasets pequenos (<10 árvores)
 - [ ] Datasets grandes (>1000 árvores)
-- [ ] Espécies com caracteres especiais
+- [ ] Dados sem altura
+
+**Fitossociologia:**
+- [ ] Cálculo de IVI (Densidade, Frequência, Dominância)
+- [ ] Exportação de tabela fitossociológica
+- [ ] Espécies com frequência baixa
+- [ ] Espécies com caracteres especiais nos nomes
+
+**Diversidade e Acumulação:**
+- [ ] Índices de Shannon, Pielou, Simpson
+- [ ] Curva de acumulação com 100 permutações
+- [ ] Estimadores de riqueza (Chao, Jackknife, Bootstrap)
+- [ ] Interpretação de suficiência amostral
+
+**Padrão Espacial:**
+- [ ] Índice de Morisita para top 5 espécies
+- [ ] Detecção de padrão agregado/uniforme/aleatório
+- [ ] Cálculo de limites de agregação/uniformidade
+
+**Biomassa:**
+- [ ] Modelo Pantropical (Chave et al., 2014)
+- [ ] Modelo Amazônico (Chambers et al., 2001)
+- [ ] Modelo Xaxins (Ziemmer et al., 2016)
+- [ ] Modelo FOM (Trautenmüller et al., 2021)
+- [ ] Tratamento de árvores sem altura (exclusão vs imputação)
+- [ ] Exportação de CSV com biomassa
+- [ ] Estatísticas por espécie
+- [ ] Identificação de espécies que representam 80% da biomassa
+
+**Casos Especiais:**
 - [ ] Troncos múltiplos
-- [ ] Dados com valores faltantes
+- [ ] Dados com valores faltantes (Altura, Coordenadas)
+- [ ] Parcelas com número variável de árvores
+- [ ] Uma única parcela
+- [ ] Muitas parcelas (>50)
 
 ---
 
-## 🌟 Reconhecimento de Contribuidores
-
-Contribuidores serão:
-- Listados no README
-- Mencionados em release notes
-- Creditados em publicações científicas que usem o software (quando aplicável)
-
----
 
 ## 📞 Dúvidas?
 
