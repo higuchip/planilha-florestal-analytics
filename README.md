@@ -2,7 +2,7 @@
 
 # 🌲 Planilha Florestal Analytics
 
-### Análise Fitossociológica Simplificada para Inventários Florestais
+### Análises para Inventários Florestais
 
 <p align="center">
   <img src="https://img.shields.io/badge/Status-Beta-orange?style=for-the-badge" alt="Status">
